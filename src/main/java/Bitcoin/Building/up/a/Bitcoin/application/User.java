@@ -22,20 +22,20 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash")  // 🔴 IMPORTANT: Map to snake_case column
+    @Column(name = "password_hash")
     private String passwordHash;
 
-    @Column(name = "full_name")  // 🔴 Map to database column name
-    private String name;
+    @Column(name = "full_name")
+    private String fullName;  // Changed from 'name' to 'fullName' to match usage
 
     @Column(name = "phone_number")
     private String phone;
 
-    private String country;  // You might not have this in DB
+    private String country;
 
-    @Column(name = "email_verified")
+    @Column(name = "email_verified", nullable = false)
     @Builder.Default
-    private Boolean emailVerified = false;
+    private boolean emailVerified = false;  // Changed from Boolean to boolean
 
     @Column(name = "verification_token")
     private String verificationToken;
@@ -49,9 +49,14 @@ public class User {
     @Column(name = "reset_token_expiry")
     private LocalDateTime resetTokenExpiry;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", nullable = false)
     @Builder.Default
-    private Boolean isActive = true;
+    private boolean isActive = true;  // Changed from Boolean to boolean
+
+    // NEW: Role field for admin functionality
+    @Column(name = "role", length = 50)
+    @Builder.Default
+    private String role = "USER";
 
     @Column(name = "created_at")
     @Builder.Default
@@ -68,4 +73,51 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Notification> notifications = new ArrayList<>();
+
+    // Custom method for backward compatibility
+    public String getName() {
+        return this.fullName;
+    }
+
+    public void setName(String name) {
+        this.fullName = name;
+    }
+
+    // NEW: Role helper methods
+    public boolean isAdmin() {
+        return "ADMIN".equals(this.role);
+    }
+
+    public boolean isUser() {
+        return "USER".equals(this.role) || this.role == null;
+    }
+
+    public void setAdminRole() {
+        this.role = "ADMIN";
+    }
+
+    public void setUserRole() {
+        this.role = "USER";
+    }
+
+    // No need for custom isEmailVerified() method anymore
+    // Lombok's @Data will generate it automatically as isEmailVerified()
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = LocalDateTime.now();
+        }
+        if (role == null) {
+            role = "USER";
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

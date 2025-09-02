@@ -1,10 +1,10 @@
-// src/pages/Lottery.js - Enhanced with 24-Hour Countdown Timer & Automated Lottery + Marketplace
+// src/pages/Lottery.js - Complete Fixed Version with Working Image Display
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import './Lottery.css';
-// Add this import after other imports
 import notificationService from '../services/NotificationService';
+import { apiRequest } from './apiUtils';
 
 function Lottery() {
     const navigate = useNavigate();
@@ -33,13 +33,12 @@ function Lottery() {
         tenMin: false,
         oneMin: false
     });
-    // 🚀 NEW: Countdown Timer State
-    const [timeRemaining, setTimeRemaining] = useState(24 * 60 * 60); // 24 hours in seconds
+    const [timeRemaining, setTimeRemaining] = useState(24 * 60 * 60);
     const [nextDrawTime, setNextDrawTime] = useState(null);
 
     const maxRetries = 3;
 
-    // 🚀 NEW: Initialize countdown timer from localStorage or set to 24 hours
+    // Initialize countdown timer
     useEffect(() => {
         const savedNextDrawTime = localStorage.getItem('nextDrawTime');
 
@@ -52,44 +51,37 @@ function Lottery() {
                 setTimeRemaining(Math.floor(remainingMs / 1000));
                 setNextDrawTime(nextDraw);
             } else {
-                // Timer expired, start new 24-hour cycle
                 startNewCountdown();
             }
         } else {
-            // First time visitor - start new countdown
             startNewCountdown();
         }
     }, []);
 
-    // 🚀 ENHANCED: Trigger countdown notifications at milestones with better logic
+    // Handle notifications
     useEffect(() => {
-        // Only trigger if user is logged in
         if (!isLoggedIn) return;
 
-        console.log(`⏰ Current time remaining: ${timeRemaining} seconds`);
+        console.log(`Current time remaining: ${timeRemaining} seconds`);
 
-        // Trigger 1-hour notification (3600 seconds)
         if (timeRemaining === 3600 && !notificationsSent.hour) {
-            console.log('🔔 Triggering 1-hour countdown notification');
+            console.log('Triggering 1-hour countdown notification');
             notificationService.triggerCountdown(60);
             setNotificationsSent(prev => ({ ...prev, hour: true }));
         }
-        // Trigger 10-minute notification (600 seconds)
         else if (timeRemaining === 600 && !notificationsSent.tenMin) {
-            console.log('🔔 Triggering 10-minute countdown notification');
+            console.log('Triggering 10-minute countdown notification');
             notificationService.triggerCountdown(10);
             setNotificationsSent(prev => ({ ...prev, tenMin: true }));
         }
-        // Trigger 1-minute notification (60 seconds)
         else if (timeRemaining === 60 && !notificationsSent.oneMin) {
-            console.log('🔔 Triggering 1-minute countdown notification');
+            console.log('Triggering 1-minute countdown notification');
             notificationService.triggerCountdown(1);
             setNotificationsSent(prev => ({ ...prev, oneMin: true }));
         }
 
-        // Reset notification flags when countdown restarts (24 hours = 86400 seconds)
         if (timeRemaining === 24 * 60 * 60) {
-            console.log('🔄 Resetting notification flags for new countdown cycle');
+            console.log('Resetting notification flags for new countdown cycle');
             setNotificationsSent({
                 hour: false,
                 tenMin: false,
@@ -98,10 +90,9 @@ function Lottery() {
         }
     }, [timeRemaining, isLoggedIn, notificationsSent]);
 
-    // 🚀 NEW: Start a new 24-hour countdown
     const startNewCountdown = useCallback(() => {
         const now = new Date();
-        const nextDraw = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+        const nextDraw = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
         setTimeRemaining(24 * 60 * 60);
         setNextDrawTime(nextDraw);
@@ -109,7 +100,6 @@ function Lottery() {
 
         console.log('New 24-hour countdown started. Next draw at:', nextDraw);
 
-        // Reset notification flags for new cycle
         setNotificationsSent({
             hour: false,
             tenMin: false,
@@ -117,7 +107,7 @@ function Lottery() {
         });
     }, []);
 
-    // 🚀 NEW: Countdown timer effect
+    // Countdown interval
     useEffect(() => {
         if (countdownIntervalRef.current) {
             clearInterval(countdownIntervalRef.current);
@@ -126,8 +116,7 @@ function Lottery() {
         countdownIntervalRef.current = setInterval(() => {
             setTimeRemaining(prev => {
                 if (prev <= 1) {
-                    // Timer reached zero - trigger automated lottery
-                    console.log('⏰ Countdown reached zero! Triggering automated lottery...');
+                    console.log('Countdown reached zero! Triggering automated lottery...');
                     automatedLotteryDraw();
                     return 0;
                 }
@@ -142,7 +131,6 @@ function Lottery() {
         };
     }, []);
 
-    // 🚀 NEW: Format time remaining for display
     const formatTime = useCallback((seconds) => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
@@ -151,30 +139,23 @@ function Lottery() {
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }, []);
 
+    // Main initialization
     useEffect(() => {
-        // Check if user is logged in
         const userData = localStorage.getItem('userData');
         const userIsLoggedIn = !!userData;
         setIsLoggedIn(userIsLoggedIn);
 
-        console.log('🔍 User login status:', userIsLoggedIn ? 'Logged in' : 'Not logged in');
+        console.log('User login status:', userIsLoggedIn ? 'Logged in' : 'Not logged in');
 
-        // Load submissions from S3/backend only
         loadLotteryPhotos();
-
-        // Load current winner from backend
         loadCurrentWinner();
-
-        // Initialize Three.js scene
         initThreeJS();
 
         return () => {
-            // Cleanup
             if (animationIdRef.current) {
                 cancelAnimationFrame(animationIdRef.current);
             }
             if (rendererRef.current && mountRef.current) {
-                // Remove event listeners
                 const canvas = rendererRef.current.domElement;
                 if (canvas.onMouseMove) canvas.removeEventListener('mousemove', canvas.onMouseMove);
                 if (canvas.onMouseClick) canvas.removeEventListener('click', canvas.onMouseClick);
@@ -188,20 +169,19 @@ function Lottery() {
         };
     }, []);
 
-    // 🚀 Load photos from S3/backend only - NO localStorage fallback
+    // FIXED: Load lottery photos with proper URL handling
     const loadLotteryPhotos = async () => {
         try {
             setError('');
             console.log('Loading lottery photos from backend/S3...');
 
-            const response = await fetch('http://localhost:8080/api/photos/lottery', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
+            const response = await apiRequest('/api/photos/lottery-feed', { method: 'GET' });
 
-            console.log('Lottery API response status:', response.status);
+            console.log('Lottery API response status:', response && response.status);
+
+            if (!response) {
+                return;
+            }
 
             if (!response.ok) {
                 throw new Error(`Backend responded with status: ${response.status}`);
@@ -211,15 +191,24 @@ function Lottery() {
             console.log('Lottery API response data:', data);
 
             if (data.success && data.photos && Array.isArray(data.photos)) {
-                // Transform backend data to frontend format
-                const transformedPhotos = data.photos.map(photo => ({
-                    id: photo.id,
-                    image: photo.s3Url || photo.image, // Use S3 URL
-                    description: photo.description || photo.filename || 'Untitled',
-                    user: photo.user || 'Anonymous',
-                    uploadDate: new Date(photo.uploadDate).toLocaleDateString(),
-                    status: photo.status === 'WINNER' ? 'Winner' : 'Submitted'
-                }));
+                // Transform backend data - ensure we have the correct image URL
+                const transformedPhotos = data.photos.map(photo => {
+                    // Extract the correct image URL from various possible fields
+                    const imageUrl = photo.s3Url || photo.image || photo.s3url || photo.url || '';
+
+                    // Log the URL for debugging
+                    console.log(`Photo ${photo.id} URL:`, imageUrl);
+
+                    return {
+                        id: photo.id,
+                        image: imageUrl,
+                        description: photo.description || photo.filename || 'Untitled',
+                        user: photo.user || photo.submittedBy || 'Anonymous',
+                        userId: photo.userId,
+                        uploadDate: photo.uploadDate ? new Date(photo.uploadDate).toLocaleDateString() : 'Unknown',
+                        status: photo.isWinner ? 'Winner' : (photo.status === 'IN_DRAW' ? 'Submitted' : photo.status || 'Submitted')
+                    };
+                });
 
                 console.log('Loaded photos from S3 for lottery:', transformedPhotos.length);
                 if (transformedPhotos.length > 0) {
@@ -227,7 +216,7 @@ function Lottery() {
                 }
 
                 setSubmissions(transformedPhotos);
-                setRetryCount(0); // Reset retry count on success
+                setRetryCount(0);
             } else {
                 console.warn('No photos found in backend response or invalid format');
                 setSubmissions([]);
@@ -237,13 +226,12 @@ function Lottery() {
             console.error('Failed to load lottery photos from backend:', error);
             setError(`Failed to load photos: ${error.message}`);
 
-            // Retry logic for network issues
             if (retryCount < maxRetries) {
                 console.log(`Retrying... attempt ${retryCount + 1}/${maxRetries}`);
                 setRetryCount(prev => prev + 1);
-                setTimeout(() => loadLotteryPhotos(), 2000 * (retryCount + 1)); // Exponential backoff
+                setTimeout(() => loadLotteryPhotos(), 2000 * (retryCount + 1));
             } else {
-                setSubmissions([]); // Empty state if all retries fail
+                setSubmissions([]);
                 setError('Unable to load photos. Please check your connection and try refreshing the page.');
             }
         } finally {
@@ -251,15 +239,10 @@ function Lottery() {
         }
     };
 
-    // 🚀 Load current winner from backend
     const loadCurrentWinner = async () => {
         try {
-            const response = await fetch('http://localhost:8080/api/photos/current-winner', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
+            const response = await apiRequest('/api/photos/current-winner', { method: 'GET' });
+            if (!response) return;
 
             if (response.ok) {
                 const data = await response.json();
@@ -268,8 +251,8 @@ function Lottery() {
                         id: data.winner.id,
                         image: data.winner.s3Url || data.winner.image,
                         description: data.winner.description,
-                        user: data.winner.user,
-                        uploadDate: new Date(data.winner.uploadDate).toLocaleDateString(),
+                        user: data.winner.user || data.winner.submittedBy || 'Anonymous',
+                        uploadDate: data.winner.uploadDate ? new Date(data.winner.uploadDate).toLocaleDateString() : 'Unknown',
                         status: 'Winner'
                     };
                     setCurrentWinner(winner);
@@ -278,10 +261,10 @@ function Lottery() {
             }
         } catch (error) {
             console.error('Failed to load current winner:', error);
-            // Don't show error for winner loading failure - it's optional
         }
     };
 
+    // Create photo sphere when submissions change
     useEffect(() => {
         if (submissions.length > 0 && sceneRef.current) {
             createPhotoSphere();
@@ -291,12 +274,10 @@ function Lottery() {
     const initThreeJS = () => {
         if (!mountRef.current) return;
 
-        // Scene setup
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a0f);
         sceneRef.current = scene;
 
-        // Camera setup
         const camera = new THREE.PerspectiveCamera(
             75,
             mountRef.current.clientWidth / mountRef.current.clientHeight,
@@ -306,7 +287,6 @@ function Lottery() {
         camera.position.set(0, 0, 8);
         cameraRef.current = camera;
 
-        // Renderer setup
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
         renderer.shadowMap.enabled = true;
@@ -314,7 +294,7 @@ function Lottery() {
         rendererRef.current = renderer;
         mountRef.current.appendChild(renderer.domElement);
 
-        // Lighting setup
+        // Lighting
         const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
         scene.add(ambientLight);
 
@@ -323,7 +303,6 @@ function Lottery() {
         directionalLight.castShadow = true;
         scene.add(directionalLight);
 
-        // Point lights for atmosphere
         const pointLight1 = new THREE.PointLight(0x4169e1, 0.8, 100);
         pointLight1.position.set(5, 5, 5);
         scene.add(pointLight1);
@@ -332,19 +311,11 @@ function Lottery() {
         pointLight2.position.set(-5, -5, 5);
         scene.add(pointLight2);
 
-        // Create main globe
         createGlobe();
-
-        // Create stars background
         createStars();
-
-        // Start animation
         animate();
-
-        // Add mouse interaction
         addMouseInteraction();
 
-        // Handle window resize
         const handleResize = () => {
             if (!mountRef.current || !camera || !renderer) return;
 
@@ -361,10 +332,8 @@ function Lottery() {
     };
 
     const createGlobe = () => {
-        // Create Earth-like globe
         const geometry = new THREE.SphereGeometry(2, 64, 64);
 
-        // Load earth texture (using a simple blue for now, can be replaced with actual earth texture)
         const material = new THREE.MeshPhongMaterial({
             color: 0x2194ce,
             transparent: true,
@@ -378,7 +347,6 @@ function Lottery() {
         globeRef.current = globe;
         sceneRef.current.add(globe);
 
-        // Add globe atmosphere
         const atmosphereGeometry = new THREE.SphereGeometry(2.1, 64, 64);
         const atmosphereMaterial = new THREE.MeshPhongMaterial({
             color: 0x87ceeb,
@@ -418,19 +386,16 @@ function Lottery() {
         let currentHoveredMesh = null;
         let isClicking = false;
 
-        // Mouse move for hover effects
         const onMouseMove = (event) => {
-            if (isClicking) return; // Prevent hover during click animations
+            if (isClicking) return;
 
             const rect = canvas.getBoundingClientRect();
             mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-            // Update raycaster
             raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
             const intersects = raycasterRef.current.intersectObjects(photoMeshesRef.current);
 
-            // Reset previous hovered mesh
             if (currentHoveredMesh && currentHoveredMesh !== intersects[0]?.object) {
                 currentHoveredMesh.scale.setScalar(1);
                 currentHoveredMesh = null;
@@ -442,18 +407,14 @@ function Lottery() {
                 const hoveredMesh = intersects[0].object;
 
                 if (hoveredMesh !== currentHoveredMesh) {
-                    // New mesh hovered
                     currentHoveredMesh = hoveredMesh;
                     setHoveredPhoto(hoveredMesh.userData.submission);
                     canvas.style.cursor = 'pointer';
-
-                    // Smooth scale animation
                     hoveredMesh.scale.setScalar(1.3);
                 }
             }
         };
 
-        // Mouse click for photo selection
         const onMouseClick = (event) => {
             const rect = canvas.getBoundingClientRect();
             mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -467,11 +428,8 @@ function Lottery() {
                 const submission = clickedMesh.userData.submission;
 
                 isClicking = true;
-
-                // Smooth click animation
                 clickedMesh.scale.setScalar(0.9);
 
-                // Reset after animation and open modal
                 setTimeout(() => {
                     clickedMesh.scale.setScalar(1);
                     isClicking = false;
@@ -480,7 +438,6 @@ function Lottery() {
             }
         };
 
-        // Mouse leave to reset hover states
         const onMouseLeave = () => {
             if (currentHoveredMesh) {
                 currentHoveredMesh.scale.setScalar(1);
@@ -494,90 +451,168 @@ function Lottery() {
         canvas.addEventListener('click', onMouseClick);
         canvas.addEventListener('mouseleave', onMouseLeave);
 
-        // Store references for cleanup
         canvas.onMouseMove = onMouseMove;
         canvas.onMouseClick = onMouseClick;
         canvas.onMouseLeave = onMouseLeave;
     };
 
+    // CRITICAL FIX: Improved image loading with CORS handling
     const createPhotoSphere = () => {
-        // Clear existing photo meshes
+        // Clean up existing photo meshes
         photoMeshesRef.current.forEach(mesh => {
+            if (mesh.material) {
+                if (mesh.material.map) {
+                    mesh.material.map.dispose();
+                }
+                mesh.material.dispose();
+            }
+            if (mesh.geometry) mesh.geometry.dispose();
             sceneRef.current.remove(mesh);
         });
         photoMeshesRef.current = [];
 
+        console.log('Creating photo sphere with', submissions.length, 'photos');
+
         submissions.forEach((submission, index) => {
-            // Create photo frame
             const frameGeometry = new THREE.PlaneGeometry(0.6, 0.4);
 
-            // Load image texture from S3
-            const loader = new THREE.TextureLoader();
+            // Create placeholder material first
+            const colors = [0xff6b6b, 0x4ecdc4, 0xf7dc6f, 0xbb8fce, 0x85c1e2, 0xf8b739];
+            const placeholderMaterial = new THREE.MeshBasicMaterial({
+                color: colors[index % colors.length],
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.8
+            });
 
-            // Add CORS headers if needed for S3 images
+            const photoMesh = new THREE.Mesh(frameGeometry, placeholderMaterial);
+
+            // Position photos around sphere
+            const phi = Math.acos(-1 + (2 * index) / submissions.length);
+            const theta = Math.sqrt(submissions.length * Math.PI) * phi;
+            const radius = 2.5;
+
+            photoMesh.position.setFromSphericalCoords(radius, phi, theta);
+            photoMesh.lookAt(0, 0, 0);
+
+            // Store submission data
+            photoMesh.userData = { submission, index };
+            photoMeshesRef.current.push(photoMesh);
+            sceneRef.current.add(photoMesh);
+
+            console.log(`Photo ${index}: ${submission.description}`);
+            console.log(`Image URL: ${submission.image}`);
+
+            // CRITICAL FIX: Load texture with proper CORS handling
+            if (submission.image) {
+                loadTextureWithCORS(submission.image, photoMesh, index, submission);
+            } else {
+                console.warn(`Photo ${index} has no image URL`);
+            }
+        });
+
+        console.log(`Photo sphere created with ${photoMeshesRef.current.length} meshes`);
+    };
+
+    // CRITICAL FIX: New function to handle CORS properly
+    const loadTextureWithCORS = (imageUrl, photoMesh, index, submission) => {
+        // Method 1: Try using Image element first (handles CORS better)
+        const img = new Image();
+        img.crossOrigin = ''; // Enable CORS
+
+        img.onload = function() {
+            console.log(`Image loaded successfully for photo ${index}`);
+
+            // Create texture from the loaded image
+            const texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+
+            // Create new material with the texture
+            const texturedMaterial = new THREE.MeshBasicMaterial({
+                map: texture,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 1.0
+            });
+
+            // Dispose old material and apply new one
+            if (photoMesh.material) {
+                photoMesh.material.dispose();
+            }
+            photoMesh.material = texturedMaterial;
+
+            // Add winner glow if applicable
+            if (submission.status === 'Winner') {
+                const glowGeometry = new THREE.PlaneGeometry(0.8, 0.6);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffd700,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.DoubleSide
+                });
+                const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+                glowMesh.position.copy(photoMesh.position);
+                glowMesh.position.multiplyScalar(0.98); // Slightly behind
+                glowMesh.lookAt(0, 0, 0);
+                sceneRef.current.add(glowMesh);
+            }
+        };
+
+        img.onerror = function(error) {
+            console.error(`Failed to load image for photo ${index}:`, error);
+            console.error(`URL attempted: ${imageUrl}`);
+
+            // Method 2: Fallback to THREE.TextureLoader
+            const loader = new THREE.TextureLoader();
             loader.crossOrigin = 'anonymous';
 
             loader.load(
-                submission.image, // This should be the S3 URL
+                imageUrl,
                 (texture) => {
-                    const frameMaterial = new THREE.MeshBasicMaterial({
+                    console.log(`Texture loaded via TextureLoader for photo ${index}`);
+                    texture.wrapS = THREE.ClampToEdgeWrapping;
+                    texture.wrapT = THREE.ClampToEdgeWrapping;
+                    texture.minFilter = THREE.LinearFilter;
+                    texture.magFilter = THREE.LinearFilter;
+
+                    const texturedMaterial = new THREE.MeshBasicMaterial({
                         map: texture,
-                        side: THREE.DoubleSide
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 1.0
                     });
 
-                    const photoMesh = new THREE.Mesh(frameGeometry, frameMaterial);
-
-                    // Position photos around the globe
-                    const phi = Math.acos(-1 + (2 * index) / submissions.length);
-                    const theta = Math.sqrt(submissions.length * Math.PI) * phi;
-
-                    const radius = 2.5; // Distance from globe center
-
-                    photoMesh.position.setFromSphericalCoords(radius, phi, theta);
-                    photoMesh.lookAt(0, 0, 0); // Face the center
-
-                    // Add glow effect for winners
-                    if (submission.status === 'Winner') {
-                        const glowGeometry = new THREE.PlaneGeometry(0.8, 0.6);
-                        const glowMaterial = new THREE.MeshBasicMaterial({
-                            color: 0xffd700,
-                            transparent: true,
-                            opacity: 0.3,
-                            side: THREE.DoubleSide
-                        });
-                        const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-                        glowMesh.position.copy(photoMesh.position);
-                        glowMesh.lookAt(0, 0, 0);
-                        sceneRef.current.add(glowMesh);
+                    if (photoMesh.material) {
+                        photoMesh.material.dispose();
                     }
-
-                    // Store reference for interaction
-                    photoMesh.userData = { submission, index };
-                    photoMeshesRef.current.push(photoMesh);
-                    sceneRef.current.add(photoMesh);
+                    photoMesh.material = texturedMaterial;
                 },
                 undefined,
                 (error) => {
-                    console.error('Error loading S3 image texture:', error, 'URL:', submission.image);
-                    // Fallback: create colored plane with text indicator
-                    const fallbackMaterial = new THREE.MeshBasicMaterial({
-                        color: 0x666666,
-                        side: THREE.DoubleSide
+                    console.error(`All loading methods failed for photo ${index}:`, error);
+
+                    // Keep placeholder but make it more visible
+                    const errorMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xff4444,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.9
                     });
-                    const photoMesh = new THREE.Mesh(frameGeometry, fallbackMaterial);
 
-                    const phi = Math.acos(-1 + (2 * index) / submissions.length);
-                    const theta = Math.sqrt(submissions.length * Math.PI) * phi;
-                    const radius = 2.5;
-
-                    photoMesh.position.setFromSphericalCoords(radius, phi, theta);
-                    photoMesh.lookAt(0, 0, 0);
-                    photoMesh.userData = { submission, index };
-                    photoMeshesRef.current.push(photoMesh);
-                    sceneRef.current.add(photoMesh);
+                    if (photoMesh.material) {
+                        photoMesh.material.dispose();
+                    }
+                    photoMesh.material = errorMaterial;
                 }
             );
-        });
+        };
+
+        // Start loading the image
+        img.src = imageUrl;
     };
 
     const animate = () => {
@@ -585,19 +620,15 @@ function Lottery() {
 
         animationIdRef.current = requestAnimationFrame(animate);
 
-        // Rotate globe smoothly
         if (globeRef.current) {
             globeRef.current.rotation.y += isSpinning ? 0.02 : 0.005;
         }
 
-        // Rotate photos with globe (but don't interfere with scale)
         photoMeshesRef.current.forEach((mesh) => {
-            // Only rotate, don't change scale here
             mesh.rotation.y += isSpinning ? 0.02 : 0.005;
         });
 
-        // Smooth camera auto-rotation
-        const time = Date.now() * 0.0003; // Slower for less motion sickness
+        const time = Date.now() * 0.0003;
         cameraRef.current.position.x = Math.cos(time) * 8;
         cameraRef.current.position.z = Math.sin(time) * 8;
         cameraRef.current.lookAt(0, 0, 0);
@@ -605,11 +636,10 @@ function Lottery() {
         rendererRef.current.render(sceneRef.current, cameraRef.current);
     };
 
-    // 🚀 NEW: Automated lottery draw when countdown reaches zero
     const automatedLotteryDraw = async () => {
         if (submissions.length === 0) {
             console.warn('No submissions available for automated lottery!');
-            startNewCountdown(); // Start new countdown even if no submissions
+            startNewCountdown();
             return;
         }
 
@@ -617,20 +647,14 @@ function Lottery() {
         setError('');
 
         try {
-            console.log('🤖 Running automated lottery draw...');
+            console.log('Running automated lottery draw...');
 
-            // Trigger final notification for lottery draw
             if (isLoggedIn) {
                 notificationService.triggerLotteryDraw(submissions.length);
             }
 
-            // Call backend to determine winner
-            const response = await fetch('http://localhost:8080/api/photos/spin-lottery', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
+            const response = await apiRequest('/api/photos/spin-lottery', { method: 'POST' });
+            if (!response) return;
 
             if (!response.ok) {
                 throw new Error(`Automated lottery failed: ${response.status}`);
@@ -644,36 +668,31 @@ function Lottery() {
                     id: result.winner.id,
                     image: result.winner.s3Url || result.winner.image,
                     description: result.winner.description,
-                    user: result.winner.user,
-                    uploadDate: new Date(result.winner.uploadDate).toLocaleDateString(),
+                    user: result.winner.user || result.winner.submittedBy || 'Anonymous',
+                    uploadDate: result.winner.uploadDate ? new Date(result.winner.uploadDate).toLocaleDateString() : 'Unknown',
                     status: 'Winner'
                 };
 
-                // Update current winner
                 setCurrentWinner(winner);
 
-                // Update submissions with winner status
                 const updatedSubmissions = submissions.map(sub => ({
                     ...sub,
                     status: sub.id === winner.id ? 'Winner' : 'Submitted'
                 }));
                 setSubmissions(updatedSubmissions);
 
-                // Trigger winner notification
                 if (isLoggedIn) {
                     notificationService.triggerWinner(winner);
                 }
 
-                // Recreate photo sphere with updated winner status
                 setTimeout(() => {
                     createPhotoSphere();
                 }, 500);
 
-                console.log(`🎉 Automated lottery complete! Winner: "${winner.description}" by ${winner.user}`);
+                console.log(`Automated lottery complete! Winner: "${winner.description}" by ${winner.user}`);
 
-                // Show notification (could be enhanced with better UX)
                 if ('Notification' in window && Notification.permission === 'granted') {
-                    new Notification('🎉 Photo Lottery Winner!', {
+                    new Notification('Photo Lottery Winner!', {
                         body: `${winner.description} by ${winner.user}`,
                         icon: winner.image
                     });
@@ -686,20 +705,14 @@ function Lottery() {
             console.error('Automated lottery error:', error);
             setError(`Automated lottery failed: ${error.message}`);
         } finally {
-            // End spinning animation after 3 seconds minimum for visual effect
             setTimeout(() => {
                 setIsSpinning(false);
             }, 3000);
 
-            // Start next 24-hour countdown cycle
             setTimeout(() => {
                 startNewCountdown();
-            }, 5000); // Give 5 seconds to show the winner before starting new countdown
+            }, 5000);
         }
-    };
-
-    const openPhotoModal = (submission) => {
-        setSelectedPhoto(submission);
     };
 
     const closePhotoModal = () => {
@@ -726,26 +739,25 @@ function Lottery() {
         loadLotteryPhotos();
     };
 
-    // 🚀 NEW: Request notification permission on component mount
     useEffect(() => {
         if ('Notification' in window && Notification.permission === 'default') {
-            console.log('🔔 Requesting notification permission...');
+            console.log('Requesting notification permission...');
             Notification.requestPermission().then(permission => {
-                console.log('🔔 Notification permission:', permission);
+                console.log('Notification permission:', permission);
             });
         }
     }, []);
 
-    // 🚀 ENHANCED: Get countdown timer class for styling
     const getCountdownClass = () => {
-        if (timeRemaining <= 600) return 'countdown-timer final'; // Last 10 minutes
-        if (timeRemaining <= 3600) return 'countdown-timer urgent'; // Last hour
+        if (timeRemaining <= 600) return 'countdown-timer final';
+        if (timeRemaining <= 3600) return 'countdown-timer urgent';
         return 'countdown-timer';
     };
 
+    // Render the component
     return (
         <div className="lottery-container">
-            {/* 🚀 ENHANCED: Countdown Timer with Dynamic Styling */}
+            {/* Countdown Timer */}
             <div className={getCountdownClass()}>
                 <div className="countdown-content">
                     <h3 className="countdown-label">Next Auto Draw In</h3>
@@ -768,7 +780,7 @@ function Lottery() {
                     Automated draws every 24 hours with S3 photos orbiting Earth!
                 </p>
 
-                {/* 🚀 ENHANCED: Current Winner Section */}
+                {/* Current Winner Display */}
                 {currentWinner && (
                     <div className="current-winner-section">
                         <div className="winner-announcement">
@@ -778,6 +790,7 @@ function Lottery() {
                                     src={currentWinner.image}
                                     alt={currentWinner.description}
                                     className="winner-image"
+                                    crossOrigin="anonymous"
                                     onError={(e) => {
                                         console.error('Winner image failed to load:', currentWinner.image);
                                         e.target.style.display = 'none';
@@ -794,7 +807,7 @@ function Lottery() {
                     </div>
                 )}
 
-                {/* 🛍️ NEW: Marketplace Section - Public View */}
+                {/* Marketplace Section */}
                 <div style={{
                     textAlign: 'center',
                     margin: '30px auto',
@@ -827,7 +840,6 @@ function Lottery() {
 
                     <button
                         onClick={() => {
-                            // Check if user is logged in
                             const userData = localStorage.getItem('userData');
                             if (userData) {
                                 navigate('/marketplace');
@@ -863,21 +875,10 @@ function Lottery() {
                     >
                         🛒 BROWSE MARKETPLACE
                     </button>
-
-                    <div style={{
-                        marginTop: '20px',
-                        padding: '15px',
-                        background: 'rgba(255, 255, 255, 0.1)',
-                        borderRadius: '15px',
-                        fontSize: '0.9rem',
-                        color: 'rgba(255, 255, 255, 0.8)'
-                    }}>
-                        <strong>💡 Tip:</strong> Sign in to buy/sell items. Earn coins from photo uploads to trade!
-                    </div>
                 </div>
 
-                {/* Login/Join Button - Only show if not logged in */}
-                {!isLoggedIn && (
+                {/* Join/Upload Sections */}
+                {!isLoggedIn ? (
                     <div style={{
                         textAlign: 'center',
                         margin: '30px auto',
@@ -937,10 +938,7 @@ function Lottery() {
                             🚀 JOIN AUTO LOTTERY!
                         </button>
                     </div>
-                )}
-
-                {/* Dashboard Button - Only show if logged in */}
-                {isLoggedIn && (
+                ) : (
                     <div style={{
                         textAlign: 'center',
                         margin: '30px auto',
@@ -1021,7 +1019,7 @@ function Lottery() {
                 </div>
             </div>
 
-            {/* Three.js Globe Container */}
+            {/* Three.js Container */}
             <div className="threejs-container">
                 {isLoading && (
                     <div className="loading-overlay">
@@ -1030,7 +1028,6 @@ function Lottery() {
                     </div>
                 )}
 
-                {/* Hover tooltip */}
                 {hoveredPhoto && (
                     <div className="photo-tooltip">
                         <strong>📍 {hoveredPhoto.description}</strong>
@@ -1041,7 +1038,6 @@ function Lottery() {
                     </div>
                 )}
 
-                {/* 🚀 NEW: Spinning indicator when automated lottery is running */}
                 {isSpinning && (
                     <div className="automated-draw-overlay">
                         <div className="draw-animation">
@@ -1072,7 +1068,7 @@ function Lottery() {
                 )}
             </div>
 
-            {/* Instructions */}
+            {/* Instructions Section */}
             <div className="instructions-section">
                 <h2>🤖 24-Hour Automated Lottery</h2>
                 <div className="instruction-cards">
@@ -1099,7 +1095,7 @@ function Lottery() {
                 </div>
             </div>
 
-            {/* Enhanced Controls Info */}
+            {/* Controls Info */}
             <div className="controls-info">
                 <h3>⚡ Automated Lottery Features</h3>
                 <ul>
@@ -1154,6 +1150,7 @@ function Lottery() {
                             src={selectedPhoto.image}
                             alt={selectedPhoto.description}
                             className="modal-image"
+                            crossOrigin="anonymous"
                             onError={(e) => {
                                 console.error('Modal image failed to load:', selectedPhoto.image);
                                 e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzY2NiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIEZhaWxlZDwvdGV4dD48L3N2Zz4=';
@@ -1169,16 +1166,6 @@ function Lottery() {
                                 <span className={`status ${selectedPhoto.status.toLowerCase()}`}>
                                     {selectedPhoto.status}
                                     {selectedPhoto.status === 'Winner' && ' 🏆'}
-                                </span>
-                            </p>
-                            <p><strong>Image URL:</strong>
-                                <span style={{
-                                    fontSize: '0.8rem',
-                                    color: '#888',
-                                    wordBreak: 'break-all',
-                                    marginLeft: '5px'
-                                }}>
-                                    {selectedPhoto.image}
                                 </span>
                             </p>
                         </div>

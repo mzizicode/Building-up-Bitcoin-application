@@ -266,7 +266,8 @@ public class NotificationService {
     @Async
     private void sendEmailNotification(Notification notification) {
         try {
-            if (notification.getUser().getEmailVerified()) {
+            // FIXED: Changed from getEmailVerified() to isEmailVerified()
+            if (notification.getUser().isEmailVerified()) {
                 emailService.sendNotificationEmail(
                         notification.getUser(),
                         notification.getTitle(),

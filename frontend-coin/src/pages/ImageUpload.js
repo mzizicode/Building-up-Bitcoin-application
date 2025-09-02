@@ -1,14 +1,15 @@
-// Enhanced ImageUpload.js with better debugging and error handling
+// Enhanced ImageUpload.js with single image restriction
 import React, { useState, useRef } from 'react';
 import './ImageUpload.css';
 
-function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, maxHeight = 768 }) {
+function ImageUpload({ onImageUpload, onImageRemove, maxSize = 1024 * 1024, maxWidth = 1024, maxHeight = 768, hasExistingImage = false }) {
     const [dragActive, setDragActive] = useState(false);
     const [error, setError] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [debugInfo, setDebugInfo] = useState('');
+    const [uploadedImage, setUploadedImage] = useState(null);
     const fileInputRef = useRef(null);
-
+npm
     const logDebug = (message) => {
         console.log('🖼️ ImageUpload:', message);
         setDebugInfo(prev => prev + `\n${new Date().toLocaleTimeString()}: ${message}`);
@@ -131,6 +132,13 @@ function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, ma
     };
 
     const handleFiles = async (files) => {
+        // Check if image already uploaded or exists
+        if (uploadedImage || hasExistingImage) {
+            setError('You can only upload one image. Please remove the current image first.');
+            logDebug('Upload blocked - image already exists');
+            return;
+        }
+
         const file = files[0];
         if (!file) {
             logDebug('No file selected');
@@ -151,6 +159,11 @@ function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, ma
         try {
             const imageData = await processImage(file);
             logDebug('Image processing successful, calling onImageUpload');
+
+            // Store uploaded image data locally
+            setUploadedImage(imageData);
+
+            // Call parent callback
             onImageUpload(imageData);
         } catch (err) {
             const errorMessage = `Failed to process image: ${err.message}`;
@@ -159,9 +172,30 @@ function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, ma
         }
     };
 
+    const handleRemoveImage = () => {
+        if (uploadedImage && uploadedImage.preview) {
+            URL.revokeObjectURL(uploadedImage.preview);
+        }
+        setUploadedImage(null);
+        setError('');
+        setDebugInfo('');
+        logDebug('Image removed');
+
+        // Call parent callback if provided
+        if (onImageRemove) {
+            onImageRemove();
+        }
+    };
+
     const handleDrag = (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        // Block drag if image already exists
+        if (uploadedImage || hasExistingImage) {
+            return;
+        }
+
         if (e.type === 'dragenter' || e.type === 'dragover') {
             setDragActive(true);
         } else if (e.type === 'dragleave') {
@@ -173,6 +207,13 @@ function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, ma
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
+
+        // Block drop if image already exists
+        if (uploadedImage || hasExistingImage) {
+            setError('You can only upload one image. Please remove the current image first.');
+            return;
+        }
+
         logDebug('File dropped');
 
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -188,6 +229,12 @@ function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, ma
     };
 
     const openFileDialog = () => {
+        // Block file dialog if image already exists
+        if (uploadedImage || hasExistingImage) {
+            setError('You can only upload one image. Please remove the current image first.');
+            return;
+        }
+
         logDebug('Opening file dialog');
         fileInputRef.current?.click();
     };
@@ -196,15 +243,101 @@ function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, ma
         setDebugInfo('');
     };
 
+    // Show uploaded image preview
+    if (uploadedImage) {
+        return (
+            <div className="image-upload-container">
+                <div className="uploaded-image-container">
+                    <div className="image-preview">
+                        <img
+                            src={uploadedImage.preview}
+                            alt="Uploaded"
+                            style={{
+                                width: '100%',
+                                height: '200px',
+                                objectFit: 'cover',
+                                borderRadius: '12px'
+                            }}
+                        />
+                        <div className="image-overlay">
+                            <button
+                                className="remove-image-btn"
+                                onClick={handleRemoveImage}
+                                title="Remove image"
+                            >
+                                ❌
+                            </button>
+                        </div>
+                    </div>
+                    <div className="image-info">
+                        <p><strong>File:</strong> {uploadedImage.file.name}</p>
+                        <p><strong>Size:</strong> {(uploadedImage.size / 1024).toFixed(1)} KB</p>
+                        <p><strong>Dimensions:</strong> {uploadedImage.width}x{uploadedImage.height}px</p>
+                        {uploadedImage.wasResized && (
+                            <p><strong>Note:</strong> Image was automatically resized for optimization</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Debug Info Panel */}
+                {debugInfo && (
+                    <div style={{
+                        marginTop: '15px',
+                        padding: '15px',
+                        backgroundColor: '#f8f9fa',
+                        borderRadius: '8px',
+                        border: '1px solid #e1e8ed'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <h4 style={{ margin: 0, fontSize: '14px', color: '#666' }}>🔧 Debug Information</h4>
+                            <button
+                                onClick={clearDebugInfo}
+                                style={{
+                                    background: 'none',
+                                    border: '1px solid #ccc',
+                                    borderRadius: '4px',
+                                    padding: '4px 8px',
+                                    fontSize: '12px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        <pre style={{
+                            fontSize: '11px',
+                            color: '#666',
+                            margin: 0,
+                            whiteSpace: 'pre-wrap',
+                            maxHeight: '150px',
+                            overflow: 'auto'
+                        }}>
+                            {debugInfo}
+                        </pre>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Show upload zone if no image exists
+    const isDisabled = hasExistingImage;
+
     return (
         <div className="image-upload-container">
+            {hasExistingImage && (
+                <div className="existing-image-notice">
+                    <p>⚠️ You have already uploaded an image for this lottery. Only one image per lottery is allowed.</p>
+                </div>
+            )}
+
             <div
-                className={`upload-zone ${dragActive ? 'drag-active' : ''} ${isProcessing ? 'processing' : ''}`}
+                className={`upload-zone ${dragActive ? 'drag-active' : ''} ${isProcessing ? 'processing' : ''} ${isDisabled ? 'disabled' : ''}`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
-                onClick={openFileDialog}
+                onClick={isDisabled ? undefined : openFileDialog}
             >
                 <input
                     ref={fileInputRef}
@@ -212,6 +345,7 @@ function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, ma
                     accept="image/*"
                     onChange={handleFileSelect}
                     style={{ display: 'none' }}
+                    disabled={isDisabled}
                 />
 
                 {isProcessing ? (
@@ -222,13 +356,16 @@ function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, ma
                 ) : (
                     <div className="upload-content">
                         <div className="upload-icon">📸</div>
-                        <h3>Upload Your Photo</h3>
-                        <p>Click to select or drag and drop</p>
-                        <div className="upload-specs">
-                            <span>• Max size: {(maxSize / 1024 / 1024).toFixed(1)}MB</span>
-                            <span>• Max dimensions: {maxWidth}x{maxHeight}px</span>
-                            <span>• Formats: JPG, PNG, GIF, WebP</span>
-                        </div>
+                        <h3>{isDisabled ? 'Image Upload Disabled' : 'Upload Your Photo'}</h3>
+                        <p>{isDisabled ? 'One image per lottery only' : 'Click to select or drag and drop'}</p>
+                        {!isDisabled && (
+                            <div className="upload-specs">
+                                <span>• Max size: {(maxSize / 1024 / 1024).toFixed(1)}MB</span>
+                                <span>• Max dimensions: {maxWidth}x{maxHeight}px</span>
+                                <span>• Formats: JPG, PNG, GIF, WebP</span>
+                                <span>• Only ONE image allowed per lottery</span>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -279,12 +416,13 @@ function ImageUpload({ onImageUpload, maxSize = 1024 * 1024, maxWidth = 1024, ma
             )}
 
             <div className="upload-tips">
-                <h4>📝 Tips for better photos:</h4>
+                <h4>📝 Tips for your single lottery photo:</h4>
                 <ul>
+                    <li>Choose your best photo - only one upload allowed per lottery</li>
                     <li>Use good lighting and clear focus</li>
-                    <li>Images are automatically optimized for best performance</li>
                     <li>Unique and interesting locations are preferred</li>
                     <li>Make sure the image represents the location well</li>
+                    <li>You can remove and replace your image before submitting</li>
                 </ul>
             </div>
         </div>

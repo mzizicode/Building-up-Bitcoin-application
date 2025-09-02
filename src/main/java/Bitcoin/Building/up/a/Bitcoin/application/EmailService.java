@@ -26,12 +26,71 @@ public class EmailService {
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
+    @Value("${app.backend.url:http://localhost:8080}")
+    private String backendUrl;
+
     @Value("${app.name:Photo Lottery}")
     private String appName;
 
     /**
-     * Send notification email
+     * Send welcome email to new user with BACKEND verification URL
      */
+    @Async
+    public CompletableFuture<Boolean> sendWelcomeEmail(User user, String verificationToken) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(user.getEmail());
+            helper.setSubject("Welcome to " + appName + "! Please verify your email");
+
+            // FIXED: Use backend URL for direct verification
+            String verificationUrl = backendUrl + "/api/auth/verify-email?token=" + verificationToken;
+            String htmlContent = buildWelcomeEmailHtml(user.getName(), verificationUrl);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(mimeMessage);
+            log.info("Welcome email sent to {} with verification URL: {}", user.getEmail(), verificationUrl);
+
+            return CompletableFuture.completedFuture(true);
+
+        } catch (Exception e) {
+            log.error("Failed to send welcome email to {}: {}", user.getEmail(), e.getMessage(), e);
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+
+    /**
+     * Send email verification email with BACKEND verification URL
+     */
+    @Async
+    public CompletableFuture<Boolean> sendVerificationEmail(String email, String userName, String verificationToken) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(email);
+            helper.setSubject("Please verify your email - " + appName);
+
+            // FIXED: Use backend URL for direct verification
+            String verificationUrl = backendUrl + "/api/auth/verify-email?token=" + verificationToken;
+            String htmlContent = buildVerificationEmailHtml(userName, verificationUrl);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(mimeMessage);
+            log.info("Verification email sent to {} with verification URL: {}", email, verificationUrl);
+
+            return CompletableFuture.completedFuture(true);
+
+        } catch (Exception e) {
+            log.error("Failed to send verification email to {}: {}", email, e.getMessage(), e);
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+
+    // Keep all other methods the same...
     @Async
     public CompletableFuture<Boolean> sendNotificationEmail(User user, String title, String message, String actionUrl) {
         try {
@@ -56,65 +115,6 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send welcome email to new user
-     */
-    @Async
-    public CompletableFuture<Boolean> sendWelcomeEmail(User user, String verificationToken) {
-        try {
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-
-            helper.setFrom(fromEmail);
-            helper.setTo(user.getEmail());
-            helper.setSubject("Welcome to " + appName + "! Please verify your email");
-
-            String verificationUrl = frontendUrl + "/verify-email?token=" + verificationToken;
-            String htmlContent = buildWelcomeEmailHtml(user.getName(), verificationUrl);
-            helper.setText(htmlContent, true);
-
-            mailSender.send(mimeMessage);
-            log.info("Welcome email sent to {}", user.getEmail());
-
-            return CompletableFuture.completedFuture(true);
-
-        } catch (Exception e) {
-            log.error("Failed to send welcome email to {}: {}", user.getEmail(), e.getMessage(), e);
-            return CompletableFuture.completedFuture(false);
-        }
-    }
-
-    /**
-     * Send email verification email
-     */
-    @Async
-    public CompletableFuture<Boolean> sendVerificationEmail(String email, String userName, String verificationToken) {
-        try {
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-
-            helper.setFrom(fromEmail);
-            helper.setTo(email);
-            helper.setSubject("Please verify your email - " + appName);
-
-            String verificationUrl = frontendUrl + "/verify-email?token=" + verificationToken;
-            String htmlContent = buildVerificationEmailHtml(userName, verificationUrl);
-            helper.setText(htmlContent, true);
-
-            mailSender.send(mimeMessage);
-            log.info("Verification email sent to {}", email);
-
-            return CompletableFuture.completedFuture(true);
-
-        } catch (Exception e) {
-            log.error("Failed to send verification email to {}: {}", email, e.getMessage(), e);
-            return CompletableFuture.completedFuture(false);
-        }
-    }
-
-    /**
-     * Send password reset email
-     */
     @Async
     public CompletableFuture<Boolean> sendPasswordResetEmail(User user, String resetToken) {
         try {
@@ -140,9 +140,6 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send lottery winner email with special formatting
-     */
     @Async
     public CompletableFuture<Boolean> sendLotteryWinnerEmail(User winner, Photo winningPhoto) {
         try {
@@ -167,9 +164,6 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send simple text email (fallback)
-     */
     @Async
     public CompletableFuture<Boolean> sendSimpleEmail(String to, String subject, String text) {
         try {
@@ -190,47 +184,7 @@ public class EmailService {
         }
     }
 
-    // HTML Email Templates
-
-    private String buildNotificationEmailHtml(String userName, String title, String message, String actionUrl) {
-        return String.format("""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>%s</title>
-                <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-                    .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-                    .button { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-                    .footer { text-align: center; margin-top: 20px; color: #666; font-size: 14px; }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h1>%s</h1>
-                    <h2>%s</h2>
-                </div>
-                <div class="content">
-                    <p>Hi %s,</p>
-                    <p>%s</p>
-                    %s
-                    <p>Thank you for being part of our community!</p>
-                    <p>Best regards,<br>The %s Team</p>
-                </div>
-                <div class="footer">
-                    <p>This is an automated message from %s. Please do not reply to this email.</p>
-                </div>
-            </body>
-            </html>
-            """,
-                title, appName, title, userName, message,
-                actionUrl != null ? String.format("<p><a href=\"%s\" class=\"button\">View Details</a></p>", actionUrl) : "",
-                appName, appName);
-    }
-
+    // HTML Email Templates - Updated with success redirect
     private String buildWelcomeEmailHtml(String userName, String verificationUrl) {
         return String.format("""
             <!DOCTYPE html>
@@ -268,12 +222,12 @@ public class EmailService {
                         </ul>
                     </div>
                     
-                    <p>To get started, please verify your email address by clicking the button below:</p>
+                    <p><strong>To get started, please verify your email address by clicking the button below:</strong></p>
                     <p style="text-align: center;">
-                        <a href="%s" class="button">Verify Email Address</a>
+                        <a href="%s" class="button">✅ Verify Email Address</a>
                     </p>
                     
-                    <p>Once verified, you'll receive 100 welcome coins to get you started!</p>
+                    <p><em>Once verified, you'll receive 100 welcome coins to get you started!</em></p>
                     
                     <p>Happy shooting!</p>
                     <p>The %s Team</p>
@@ -313,7 +267,7 @@ public class EmailService {
                     <p>Thank you for registering with %s! To complete your registration and secure your account, please verify your email address.</p>
                     
                     <p style="text-align: center;">
-                        <a href="%s" class="button">Verify Email Address</a>
+                        <a href="%s" class="button">✅ Verify Email Address</a>
                     </p>
                     
                     <div class="warning">
@@ -337,6 +291,46 @@ public class EmailService {
             </body>
             </html>
             """, appName, appName, userName, appName, verificationUrl, verificationUrl, appName, appName);
+    }
+
+    // Keep other HTML template methods unchanged...
+    private String buildNotificationEmailHtml(String userName, String title, String message, String actionUrl) {
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>%s</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .button { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+                    .footer { text-align: center; margin-top: 20px; color: #666; font-size: 14px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>%s</h1>
+                    <h2>%s</h2>
+                </div>
+                <div class="content">
+                    <p>Hi %s,</p>
+                    <p>%s</p>
+                    %s
+                    <p>Thank you for being part of our community!</p>
+                    <p>Best regards,<br>The %s Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message from %s. Please do not reply to this email.</p>
+                </div>
+            </body>
+            </html>
+            """,
+                title, appName, title, userName, message,
+                actionUrl != null ? String.format("<p><a href=\"%s\" class=\"button\">View Details</a></p>", actionUrl) : "",
+                appName, appName);
     }
 
     private String buildPasswordResetEmailHtml(String userName, String resetUrl) {

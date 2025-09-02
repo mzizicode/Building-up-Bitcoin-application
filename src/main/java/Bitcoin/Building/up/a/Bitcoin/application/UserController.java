@@ -31,13 +31,19 @@ public class UserController {
             log.info("Creating user: name={}, email={}, country={}", name, email, country);
 
             // Check if user already exists by email
-            // You might want to add a findByEmail method to UserRepository
+            if (userRepository.findByEmail(email.toLowerCase().trim()).isPresent()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "User with this email already exists");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
 
             User user = User.builder()
-                    .name(name.trim())
+                    .fullName(name.trim())  // FIXED: Use fullName instead of name
                     .email(email.trim().toLowerCase())
                     .country(country.trim())
                     .phone(phone != null ? phone.trim() : null)
+                    .emailVerified(false)  // Set default email verification status
                     .build();
 
             User savedUser = userRepository.save(user);
@@ -48,6 +54,8 @@ public class UserController {
             userMap.put("name", savedUser.getName());
             userMap.put("email", savedUser.getEmail());
             userMap.put("country", savedUser.getCountry());
+            userMap.put("phone", savedUser.getPhone());
+            userMap.put("emailVerified", savedUser.isEmailVerified()); // FIXED: Use isEmailVerified()
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -77,6 +85,8 @@ public class UserController {
                         userMap.put("name", user.getName());
                         userMap.put("email", user.getEmail());
                         userMap.put("country", user.getCountry());
+                        userMap.put("phone", user.getPhone());
+                        userMap.put("emailVerified", user.isEmailVerified()); // FIXED
                         userMap.put("photosCount", user.getPhotos() != null ? user.getPhotos().size() : 0);
                         return userMap;
                     })
@@ -110,6 +120,8 @@ public class UserController {
             userMap.put("email", user.getEmail());
             userMap.put("country", user.getCountry());
             userMap.put("phone", user.getPhone());
+            userMap.put("emailVerified", user.isEmailVerified()); // FIXED
+            userMap.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
             userMap.put("photosCount", user.getPhotos() != null ? user.getPhotos().size() : 0);
 
             Map<String, Object> response = new HashMap<>();
@@ -127,18 +139,17 @@ public class UserController {
         }
     }
 
-    // Quick method to create a default test user
     @PostMapping("/create-test-user")
     public ResponseEntity<?> createTestUser() {
         try {
             // Check if test user already exists
-            List<User> existingUsers = userRepository.findAll();
-            if (!existingUsers.isEmpty()) {
-                User firstUser = existingUsers.get(0);
+            if (userRepository.findByEmail("modernadventure805@gmail.com").isPresent()) {
+                User existingUser = userRepository.findByEmail("modernadventure805@gmail.com").get();
                 Map<String, Object> userMap = new HashMap<>();
-                userMap.put("id", firstUser.getId());
-                userMap.put("name", firstUser.getName());
-                userMap.put("email", firstUser.getEmail());
+                userMap.put("id", existingUser.getId());
+                userMap.put("name", existingUser.getName());
+                userMap.put("email", existingUser.getEmail());
+                userMap.put("emailVerified", existingUser.isEmailVerified()); // FIXED
 
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", true);
@@ -149,10 +160,11 @@ public class UserController {
             }
 
             User testUser = User.builder()
-                    .name("Test User")
-                    .email("modernadventure805@gmail.com") // 🚀 UPDATED to your email
+                    .fullName("Test User")  // FIXED: Use fullName instead of name
+                    .email("modernadventure805@gmail.com")
                     .country("Thailand")
                     .phone("+66-xxx-xxx-xxx")
+                    .emailVerified(true)  // Set as verified for test user
                     .build();
 
             User savedUser = userRepository.save(testUser);
@@ -163,6 +175,8 @@ public class UserController {
             userMap.put("name", savedUser.getName());
             userMap.put("email", savedUser.getEmail());
             userMap.put("country", savedUser.getCountry());
+            userMap.put("phone", savedUser.getPhone());
+            userMap.put("emailVerified", savedUser.isEmailVerified()); // FIXED
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -179,6 +193,7 @@ public class UserController {
             return ResponseEntity.status(500).body(errorResponse);
         }
     }
+
     @GetMapping("/by-email")
     @Operation(summary = "Get user by email", description = "Retrieve user details by email address")
     @SecurityRequirement(name = "bearerAuth")
@@ -203,7 +218,7 @@ public class UserController {
             userMap.put("email", user.getEmail());
             userMap.put("country", user.getCountry());
             userMap.put("phone", user.getPhone());
-            userMap.put("emailVerified", user.getEmailVerified());
+            userMap.put("emailVerified", user.isEmailVerified()); // FIXED
             userMap.put("createdAt", user.getCreatedAt() != null ?
                     user.getCreatedAt().toString() : null);
 
@@ -223,7 +238,7 @@ public class UserController {
         }
     }
 
-    // Utility method for masking email (add if not exists)
+    // Utility method for masking email
     private String maskEmail(String email) {
         if (email == null || email.length() < 3) return "***";
         int atIndex = email.indexOf('@');

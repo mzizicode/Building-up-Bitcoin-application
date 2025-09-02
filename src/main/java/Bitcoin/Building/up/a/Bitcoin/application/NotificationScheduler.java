@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import Bitcoin.Building.up.a.Bitcoin.application.PhotoStatus;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -88,7 +89,8 @@ public class NotificationScheduler {
             }
 
             // Check if there are submitted photos
-            long submittedCount = photoRepository.countByStatus(Photo.PhotoStatus.SUBMITTED);
+            long submittedCount = photoRepository.countByStatus(PhotoStatus.IN_DRAW);
+
 
             if (submittedCount == 0) {
                 log.info("No photos submitted for automatic lottery draw");

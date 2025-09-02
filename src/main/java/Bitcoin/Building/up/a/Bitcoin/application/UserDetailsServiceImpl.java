@@ -1,7 +1,5 @@
 package Bitcoin.Building.up.a.Bitcoin.application;
 
-import Bitcoin.Building.up.a.Bitcoin.application.User;
-import Bitcoin.Building.up.a.Bitcoin.application.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -29,7 +27,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                     return new UsernameNotFoundException("User not found with email: " + email);
                 });
 
-        if (!user.getEmailVerified()) {
+        // FIXED: Changed from getEmailVerified() to isEmailVerified()
+        if (!user.isEmailVerified()) {
             log.warn("User email not verified: {}", email);
             throw new UsernameNotFoundException("Email not verified for user: " + email);
         }

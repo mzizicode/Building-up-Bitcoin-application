@@ -1,8 +1,13 @@
 package Bitcoin.Building.up.a.Bitcoin.application;
 
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SecurityException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,20 +23,41 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
+    /**
+     * Base64-encoded secret key (HS256). Example:
+     * jwt.secret=VGhpc0lzQVVVUl9MT05HX1NFQ1JFVF9TSE9VTERCRV9CQVNFMjU2IQ==
+     */
     @Value("${jwt.secret}")
     private String secretKey;
 
+    /**
+     * Token lifetime in milliseconds (e.g., 3600000 for 1 hour)
+     */
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
-    public String extractEmail(String token) {
+    // ---------------------------------------------------------------------
+    // Extraction helpers (keep all three to satisfy any caller in your code)
+    // ---------------------------------------------------------------------
+
+    /** Preferred generic accessor: reads the JWT "sub" claim. */
+    public String extractSubject(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
+    /** Compatibility alias: many codebases call this. */
+    public String extractUsername(String token) {
+        return extractSubject(token);
     }
+
+    /** Compatibility alias: your current code calls this. */
+    public String extractEmail(String token) {
+        return extractSubject(token);
+    }
+
+    // ---------------------------------
+    // Token generation (optional use)
+    // ---------------------------------
 
     public String generateToken(UserDetails userDetails) {
         return generateToken(new HashMap<>(), userDetails);
@@ -46,20 +72,26 @@ public class JwtService {
             UserDetails userDetails,
             long expiration
     ) {
-        return Jwts
-                .builder()
+        // NOTE: using the new jjwt 0.11+ builder API: set signing key via .signWith(Key)
+        return Jwts.builder()
                 .setClaims(extraClaims)
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
+                .signWith(getSignInKey()) // HS256 inferred from key size
                 .compact();
     }
 
+    // -------------------------
+    // Validation
+    // -------------------------
+
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
-            final String email = extractEmail(token);
-            return (email.equals(userDetails.getUsername())) && !isTokenExpired(token);
+            final String subject = extractSubject(token);
+            return subject != null
+                    && subject.equals(userDetails.getUsername())
+                    && !isTokenExpired(token);
         } catch (Exception e) {
             log.warn("Token validation failed: {}", e.getMessage());
             return false;
@@ -67,17 +99,26 @@ public class JwtService {
     }
 
     private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+        Date exp = extractExpiration(token);
+        return exp != null && exp.before(new Date());
     }
 
     private Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
 
+    // -------------------------
+    // Claim utilities
+    // -------------------------
+
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
+    }
+
     private Claims extractAllClaims(String token) {
         try {
-            return Jwts
-                    .parserBuilder()
+            return Jwts.parserBuilder()
                     .setSigningKey(getSignInKey())
                     .build()
                     .parseClaimsJws(token)
@@ -95,12 +136,17 @@ public class JwtService {
             log.warn("JWT signature invalid: {}", e.getMessage());
             throw e;
         } catch (IllegalArgumentException e) {
-            log.warn("JWT token compact of handler are invalid: {}", e.getMessage());
+            log.warn("JWT token compact or handler invalid: {}", e.getMessage());
             throw e;
         }
     }
 
+    // -------------------------
+    // Key
+    // -------------------------
+
     private Key getSignInKey() {
+        // secretKey must be Base64-encoded
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }

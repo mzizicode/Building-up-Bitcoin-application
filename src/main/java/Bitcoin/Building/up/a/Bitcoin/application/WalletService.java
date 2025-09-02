@@ -45,7 +45,8 @@ public class WalletService {
         // Give welcome bonus
         awardCoins(user.getId(), BigDecimal.valueOf(100),
                 CoinTransaction.TransactionCategory.ACHIEVEMENT_UNLOCK,
-                "Welcome bonus! 🎉");
+                "Welcome bonus!",
+                "WELCOME-" + user.getId());
 
         return savedWallet;
     }
@@ -71,10 +72,11 @@ public class WalletService {
     }
 
     /**
-     * Award coins to user (earning scenario)
+     * ENHANCED: Award coins with reference tracking (for photo uploads)
      */
     public CoinTransaction awardCoins(Long userId, BigDecimal amount,
-                                      CoinTransaction.TransactionCategory category, String description) {
+                                      CoinTransaction.TransactionCategory category,
+                                      String description, String referenceId) {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be positive");
         }
@@ -90,6 +92,7 @@ public class WalletService {
                 .type(CoinTransaction.TransactionType.EARN)
                 .category(category)
                 .description(description)
+                .referenceId(referenceId)
                 .status(CoinTransaction.TransactionStatus.COMPLETED)
                 .build();
 
@@ -99,17 +102,29 @@ public class WalletService {
         wallet.addToBalance(amount);
         walletRepository.save(wallet);
 
-        log.info("Awarded {} coins to user {} for {}", amount, userId, category);
+        log.info("Awarded {} coins to user {} for {} (ref: {})", amount, userId, category, referenceId);
 
         // Send notification
-        notificationService.sendNotification(
-                userId,
-                Notification.NotificationType.ACHIEVEMENT_UNLOCKED,
-                "💰 Coins Earned!",
-                String.format("You earned %s coins! %s", amount, description)
-        );
+        try {
+            notificationService.sendNotification(
+                    userId,
+                    Notification.NotificationType.ACHIEVEMENT_UNLOCKED,
+                    "Coins Earned!",
+                    String.format("You earned %s coins! %s", amount, description)
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send notification for coin award: {}", e.getMessage());
+        }
 
         return savedTransaction;
+    }
+
+    /**
+     * ORIGINAL: Award coins (backward compatibility)
+     */
+    public CoinTransaction awardCoins(Long userId, BigDecimal amount,
+                                      CoinTransaction.TransactionCategory category, String description) {
+        return awardCoins(userId, amount, category, description, null);
     }
 
     /**
@@ -149,9 +164,39 @@ public class WalletService {
         wallet.subtractFromBalance(amount);
         walletRepository.save(wallet);
 
-        log.info("User {} spent {} coins for {}", userId, amount, category);
+        log.info("User {} spent {} coins for {} (ref: {})", userId, amount, category, referenceId);
 
         return savedTransaction;
+    }
+
+    /**
+     * ENHANCED: Reverse transaction by reference ID (for photo deletions)
+     */
+    public void reverseTransactionByReference(String referenceId, String reason) {
+        List<CoinTransaction> transactions = coinTransactionRepository
+                .findByReferenceIdAndTypeAndStatus(referenceId,
+                        CoinTransaction.TransactionType.EARN,
+                        CoinTransaction.TransactionStatus.COMPLETED);
+
+        for (CoinTransaction transaction : transactions) {
+            try {
+                // Create reversal transaction
+                spendCoins(
+                        transaction.getToUser().getId(),
+                        transaction.getAmount(),
+                        CoinTransaction.TransactionCategory.MANUAL_ADJUSTMENT,
+                        "Reversal: " + reason,
+                        "REVERSE-" + transaction.getId()
+                );
+
+                log.info("Reversed transaction {} for user {} - reason: {}",
+                        transaction.getId(), transaction.getToUser().getId(), reason);
+
+            } catch (RuntimeException e) {
+                log.error("Failed to reverse transaction {}: {}", transaction.getId(), e.getMessage());
+                throw e;
+            }
+        }
     }
 
     /**
@@ -198,12 +243,16 @@ public class WalletService {
         log.info("Transferred {} coins from user {} to user {}", amount, fromUserId, toUserId);
 
         // Send notifications
-        notificationService.sendNotification(
-                toUserId,
-                Notification.NotificationType.ACHIEVEMENT_UNLOCKED,
-                "💰 Coins Received!",
-                String.format("You received %s coins from %s", amount, fromWallet.getUser().getName())
-        );
+        try {
+            notificationService.sendNotification(
+                    toUserId,
+                    Notification.NotificationType.ACHIEVEMENT_UNLOCKED,
+                    "Coins Received!",
+                    String.format("You received %s coins from %s", amount, fromWallet.getUser().getName())
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send transfer notification: {}", e.getMessage());
+        }
 
         return savedTransaction;
     }
@@ -252,9 +301,9 @@ public class WalletService {
      * Release escrowed coins to seller
      */
     public CoinTransaction releaseEscrow(String referenceId, Long sellerUserId, String description) {
-        // Find the escrow transaction
+        // Find the escrow transaction - FIXED METHOD NAME
         CoinTransaction escrowTransaction = coinTransactionRepository
-                .findByReferenceIdAndTypeAndStatus(referenceId,
+                .findEscrowTransactionByReferenceAndTypeAndStatus(referenceId,
                         CoinTransaction.TransactionType.ESCROW_HOLD,
                         CoinTransaction.TransactionStatus.ESCROWED)
                 .orElseThrow(() -> new RuntimeException("Escrow transaction not found: " + referenceId));
@@ -293,12 +342,16 @@ public class WalletService {
         log.info("Released {} coins from escrow to seller {} (ref: {})", amount, sellerUserId, referenceId);
 
         // Notify seller
-        notificationService.sendNotification(
-                sellerUserId,
-                Notification.NotificationType.LOTTERY_WINNER,
-                "💰 Payment Received!",
-                String.format("You received %s coins for your sale!", amount)
-        );
+        try {
+            notificationService.sendNotification(
+                    sellerUserId,
+                    Notification.NotificationType.LOTTERY_WINNER,
+                    "Payment Received!",
+                    String.format("You received %s coins for your sale!", amount)
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send escrow release notification: {}", e.getMessage());
+        }
 
         return savedReleaseTransaction;
     }
@@ -307,9 +360,9 @@ public class WalletService {
      * Refund escrowed coins to buyer
      */
     public CoinTransaction refundEscrow(String referenceId, String reason) {
-        // Find the escrow transaction
+        // Find the escrow transaction - FIXED METHOD NAME
         CoinTransaction escrowTransaction = coinTransactionRepository
-                .findByReferenceIdAndTypeAndStatus(referenceId,
+                .findEscrowTransactionByReferenceAndTypeAndStatus(referenceId,
                         CoinTransaction.TransactionType.ESCROW_HOLD,
                         CoinTransaction.TransactionStatus.ESCROWED)
                 .orElseThrow(() -> new RuntimeException("Escrow transaction not found: " + referenceId));
@@ -343,12 +396,16 @@ public class WalletService {
                 amount, buyerWallet.getUser().getId(), referenceId);
 
         // Notify buyer
-        notificationService.sendNotification(
-                buyerWallet.getUser().getId(),
-                Notification.NotificationType.SYSTEM_MAINTENANCE,
-                "💰 Refund Processed",
-                String.format("Your %s coins have been refunded. Reason: %s", amount, reason)
-        );
+        try {
+            notificationService.sendNotification(
+                    buyerWallet.getUser().getId(),
+                    Notification.NotificationType.SYSTEM_MAINTENANCE,
+                    "Refund Processed",
+                    String.format("Your %s coins have been refunded. Reason: %s", amount, reason)
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send refund notification: {}", e.getMessage());
+        }
 
         return savedRefundTransaction;
     }
@@ -400,12 +457,16 @@ public class WalletService {
         log.info("Topped up {} coins for user {} via {}", amount, userId, paymentMethod);
 
         // Notify user
-        notificationService.sendNotification(
-                userId,
-                Notification.NotificationType.ACHIEVEMENT_UNLOCKED,
-                "💳 Top-up Successful!",
-                String.format("Your wallet has been credited with %s coins", amount)
-        );
+        try {
+            notificationService.sendNotification(
+                    userId,
+                    Notification.NotificationType.ACHIEVEMENT_UNLOCKED,
+                    "Top-up Successful!",
+                    String.format("Your wallet has been credited with %s coins", amount)
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send top-up notification: {}", e.getMessage());
+        }
 
         return savedTransaction;
     }

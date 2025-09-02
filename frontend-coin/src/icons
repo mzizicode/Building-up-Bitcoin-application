@@ -1,0 +1,5 @@
+<!-- src/icons/wallet.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M2 6a2 2 0 012-2h16a1 1 0 110 2H4v12h16a1 1 0 110 2H4a2 2 0 01-2-2V6z"/>
+  <path d="M16 10h4v4h-4z"/>
+</svg>

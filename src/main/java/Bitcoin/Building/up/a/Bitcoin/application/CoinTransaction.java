@@ -83,6 +83,7 @@ public class CoinTransaction {
     public enum TransactionCategory {
         PHOTO_UPLOAD,
         LOTTERY_WIN,
+        LOTTERY_PARTICIPATION,  // Added for lottery consolation prizes
         PURCHASE,
         REFERRAL,
         DAILY_LOGIN,

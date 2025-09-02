@@ -64,7 +64,7 @@ public class AuthController {
 
             // Create user
             User user = User.builder()
-                    .name(sanitizeInput(request.getName()))
+                    .fullName(sanitizeInput(request.getName()))
                     .email(request.getEmail().toLowerCase().trim())
                     .passwordHash(passwordEncoder.encode(request.getPassword()))
                     .country(sanitizeInput(request.getCountry()))
@@ -84,8 +84,13 @@ public class AuthController {
                 // Continue with registration even if email fails
             }
 
-            // 🚀 NEW: Send welcome notification after successful registration
-            notificationService.sendWelcomeNotification(savedUser);
+            // Send welcome notification after successful registration
+            try {
+                notificationService.sendWelcomeNotification(savedUser);
+            } catch (Exception e) {
+                log.error("Failed to send welcome notification", e);
+                // Continue even if notification fails
+            }
 
             log.info("User registered successfully with ID: {}", savedUser.getId());
 
@@ -125,8 +130,8 @@ public class AuthController {
                 ));
             }
 
-            // Check email verification
-            if (!user.getEmailVerified()) {
+            // Check email verification - FIXED
+            if (!user.isEmailVerified()) {
                 return ResponseEntity.badRequest().body(Map.of(
                         "success", false,
                         "message", "Please verify your email before signing in"
@@ -173,97 +178,11 @@ public class AuthController {
         }
     }
 
-    @GetMapping("/verify-email")
-    @Operation(summary = "Verify email", description = "Verify user email using verification token")
-    @ApiResponse(responseCode = "200", description = "Email verified successfully")
-    @ApiResponse(responseCode = "400", description = "Invalid or expired token")
-    public ResponseEntity<?> verifyEmail(@RequestParam String token) {
-        try {
-            log.info("Email verification attempt with token");
-
-            User user = userRepository.findByVerificationToken(token).orElse(null);
-
-            if (user == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "message", "Invalid verification token"
-                ));
-            }
-
-            // Check token expiry
-            if (user.getVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "message", "Verification token has expired. Please request a new one."
-                ));
-            }
-
-            // Verify email
-            user.setEmailVerified(true);
-            user.setVerificationToken(null);
-            user.setVerificationTokenExpiry(null);
-            userRepository.save(user);
-
-            log.info("Email verified successfully for user ID: {}", user.getId());
-
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "Email verified successfully! You can now sign in."
-            ));
-
-        } catch (Exception e) {
-            log.error("Email verification failed", e);
-            return ResponseEntity.status(500).body(Map.of(
-                    "success", false,
-                    "message", "Email verification failed. Please try again."
-            ));
-        }
-    }
-
-    @PostMapping("/resend-verification")
-    @Operation(summary = "Resend verification email", description = "Resend email verification for unverified users")
-    public ResponseEntity<?> resendVerificationEmail(@RequestParam String email) {
-        try {
-            User user = userRepository.findByEmail(email.toLowerCase().trim()).orElse(null);
-
-            if (user == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "message", "User not found"
-                ));
-            }
-
-            if (user.getEmailVerified()) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "message", "Email is already verified"
-                ));
-            }
-
-            // Generate new verification token
-            String verificationToken = UUID.randomUUID().toString();
-            LocalDateTime tokenExpiry = LocalDateTime.now().plusHours(24);
-
-            user.setVerificationToken(verificationToken);
-            user.setVerificationTokenExpiry(tokenExpiry);
-            userRepository.save(user);
-
-            // Send verification email
-            emailService.sendVerificationEmail(user.getEmail(), user.getName(), verificationToken);
-
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "Verification email sent successfully"
-            ));
-
-        } catch (Exception e) {
-            log.error("Resend verification failed", e);
-            return ResponseEntity.status(500).body(Map.of(
-                    "success", false,
-                    "message", "Failed to resend verification email"
-            ));
-        }
-    }
+    // ============================================
+    // REMOVED DUPLICATE METHODS:
+    // - verifyEmail() - Now handled by EmailVerificationController
+    // - resendVerificationEmail() - Now handled by EmailVerificationController
+    // ============================================
 
     // Utility methods
     private boolean isPasswordStrong(String password) {
@@ -290,6 +209,7 @@ public class AuthController {
         return email.substring(0, Math.min(2, atIndex)) + "***" + email.substring(atIndex);
     }
 
+    // FIXED: Use correct method for email verification check
     private Map<String, Object> createUserResponse(User user) {
         Map<String, Object> userResponse = new HashMap<>();
         userResponse.put("id", user.getId());
@@ -297,7 +217,7 @@ public class AuthController {
         userResponse.put("email", user.getEmail());
         userResponse.put("country", user.getCountry());
         userResponse.put("phone", user.getPhone());
-        userResponse.put("emailVerified", user.getEmailVerified());
+        userResponse.put("emailVerified", user.isEmailVerified());
         userResponse.put("createdAt", user.getCreatedAt().toString());
         return userResponse;
     }

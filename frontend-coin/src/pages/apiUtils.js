@@ -8,11 +8,9 @@ const getAuthHeaders = () => {
     const headers = {
         'Content-Type': 'application/json',
     };
-
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-
     return headers;
 };
 
@@ -20,18 +18,15 @@ const getAuthHeaders = () => {
 const getAuthHeadersMultipart = () => {
     const token = localStorage.getItem('authToken');
     const headers = {};
-
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-
     return headers;
 };
 
 // Generic API request function
 export const apiRequest = async (endpoint, options = {}) => {
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
-
     const config = {
         ...options,
         headers: {
@@ -48,7 +43,9 @@ export const apiRequest = async (endpoint, options = {}) => {
             console.warn('Authentication failed - clearing stored auth data');
             localStorage.removeItem('authToken');
             localStorage.removeItem('userData');
-            window.location.href = '/signin';
+            // optional: remember where the user was going
+            const here = window.location.pathname + window.location.search;
+            window.location.href = `/signin?next=${encodeURIComponent(here)}`;
             return null;
         }
 
@@ -59,7 +56,7 @@ export const apiRequest = async (endpoint, options = {}) => {
     }
 };
 
-// Auth-specific API calls
+// Auth-specific API calls (public)
 export const authAPI = {
     register: (userData) =>
         fetch(`${API_BASE_URL}/api/auth/register`, {
@@ -98,8 +95,9 @@ export const photoAPI = {
     getUserPhotos: () =>
         apiRequest('/api/photos/my-photos'),
 
+    // ✅ FIXED: use apiRequest so Authorization header is included (prevents 401)
     getAllLotteryPhotos: () =>
-        fetch(`${API_BASE_URL}/api/photos/lottery`),
+        apiRequest('/api/photos/lottery', { method: 'GET' }),
 
     deletePhoto: (photoId) =>
         apiRequest(`/api/photos/${photoId}`, { method: 'DELETE' }),

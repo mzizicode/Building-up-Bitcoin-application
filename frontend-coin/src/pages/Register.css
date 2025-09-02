@@ -1,7 +1,7 @@
 /* src/pages/Register.css - Enhanced Modern Design */
 
 .form-input::placeholder {
-    color: #999;
+    color: #666;
     font-style: italic;
 }
 
@@ -26,7 +26,7 @@
 
 /* Enhanced glass morphism card */
 .register-card {
-    background: rgba(255, 255, 255, 0.98);
+    background: rgba(255, 255, 255, 0);
     backdrop-filter: blur(20px) saturate(180%);
     border-radius: 25px;
     padding: 45px;
@@ -210,11 +210,11 @@
 /* Enhanced input fields */
 .form-input, .form-select {
     padding: 18px 20px;
-    border: 2px solid #e8eaf6;
+    border: 2px solid rgba(232, 234, 246, 0.15);
     border-radius: 15px;
     font-size: 1.05rem;
     transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    background: linear-gradient(145deg, #fafbfc, #ffffff);
+    background: linear-gradient(145deg, rgba(250, 251, 252, 0.01), rgba(255, 255, 255, 0));
     box-shadow:
             inset 0 2px 4px rgba(0, 0, 0, 0.06),
             0 1px 3px rgba(0, 0, 0, 0.1);
@@ -225,7 +225,8 @@
 .form-input:focus, .form-select:focus {
     outline: none;
     border-color: #667eea;
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.95);  /* Changed from 0.18 opacity */
+    color: #222;  /* Added explicit text color */
     box-shadow:
             0 0 0 4px rgba(102, 126, 234, 0.1),
             0 8px 25px rgba(102, 126, 234, 0.15),
@@ -238,6 +239,7 @@
     box-shadow:
             inset 0 2px 4px rgba(0, 0, 0, 0.06),
             0 4px 12px rgba(102, 126, 234, 0.1);
+    background: rgba(255, 255, 255, 0.9);
 }
 
 /* Enhanced select styling */
