@@ -19,6 +19,7 @@ public class MarketplaceService {
 
     private final MarketplaceItemRepository marketplaceItemRepository;
     private final MarketplaceCategoryRepository marketplaceCategoryRepository;
+    private final MarketplaceFavoriteRepository marketplaceFavoriteRepository;
     private final WalletService walletService;
     private final S3Service s3Service;
     private final UserRepository userRepository;
@@ -27,6 +28,7 @@ public class MarketplaceService {
     /**
      * Create a new marketplace listing
      */
+    @Transactional
     public MarketplaceItem createListing(CreateListingRequest request, Long sellerId) {
         User seller = userRepository.findById(sellerId)
                 .orElseThrow(() -> new RuntimeException("Seller not found"));
@@ -57,14 +59,14 @@ public class MarketplaceService {
                 .build();
 
         MarketplaceItem savedItem = marketplaceItemRepository.save(item);
-        log.info("Created marketplace item {} by seller {}", savedItem.getId(), sellerId);
+        log.info("Created marketplace item {} in {}'s store", savedItem.getId(), seller.getName());
 
         // Award coins for listing item
         walletService.awardCoins(
                 sellerId,
                 BigDecimal.valueOf(10),
                 CoinTransaction.TransactionCategory.ACHIEVEMENT_UNLOCK,
-                "Listed new item: " + request.getTitle()
+                "Listed new item in store: " + request.getTitle()
         );
 
         return savedItem;
@@ -72,21 +74,17 @@ public class MarketplaceService {
 
     /**
      * Upload images for a listing
-     * FIXED: Now properly calls S3Service.uploadFile with single MultipartFile parameter
      */
     public List<String> uploadListingImages(List<MultipartFile> images, Long sellerId) {
         List<String> imageUrls = new ArrayList<>();
 
         for (MultipartFile image : images) {
             try {
-                // S3Service.uploadFile handles the file naming internally
-                // Just pass the MultipartFile
                 String imageUrl = s3Service.uploadFile(image);
                 imageUrls.add(imageUrl);
                 log.info("Successfully uploaded image for seller {}: {}", sellerId, imageUrl);
             } catch (Exception e) {
                 log.error("Failed to upload image for seller {}: {}", sellerId, e.getMessage());
-                // Continue processing other images even if one fails
             }
         }
 
@@ -94,28 +92,15 @@ public class MarketplaceService {
     }
 
     /**
-     * Alternative method to upload a single image
-     */
-    public String uploadSingleImage(MultipartFile image, Long sellerId) {
-        try {
-            String imageUrl = s3Service.uploadFile(image);
-            log.info("Successfully uploaded single image for seller {}: {}", sellerId, imageUrl);
-            return imageUrl;
-        } catch (Exception e) {
-            log.error("Failed to upload image for seller {}: {}", sellerId, e.getMessage());
-            throw new RuntimeException("Failed to upload image: " + e.getMessage());
-        }
-    }
-
-    /**
      * Update listing
      */
+    @Transactional
     public MarketplaceItem updateListing(Long itemId, UpdateListingRequest request, Long sellerId) {
         MarketplaceItem item = marketplaceItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
         if (!item.getSeller().getId().equals(sellerId)) {
-            throw new RuntimeException("Unauthorized: You can only edit your own listings");
+            throw new RuntimeException("Unauthorized: You can only edit items in your own store");
         }
 
         // Update fields if provided
@@ -156,8 +141,9 @@ public class MarketplaceService {
     }
 
     /**
-     * Get listing by ID
+     * Get listing by ID - WITH EAGER LOADING
      */
+    @Transactional(readOnly = true)
     public MarketplaceItem getListing(Long itemId) {
         MarketplaceItem item = marketplaceItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found"));
@@ -170,15 +156,13 @@ public class MarketplaceService {
     }
 
     /**
-     * Search listings
+     * Search listings across all stores - WITH EAGER LOADING
      */
+    @Transactional(readOnly = true)
     public List<MarketplaceItem> searchListings(String query, Long categoryId,
                                                 BigDecimal minPrice, BigDecimal maxPrice,
                                                 MarketplaceItem.ItemCondition condition,
                                                 String location, int page, int size) {
-        // This would typically use a more sophisticated search (Elasticsearch, etc.)
-        // For now, using simple repository queries
-
         if (query != null && !query.trim().isEmpty()) {
             return marketplaceItemRepository.searchByTitleOrDescription(query, page * size, size);
         }
@@ -187,15 +171,17 @@ public class MarketplaceService {
     }
 
     /**
-     * Get listings by seller
+     * Get listings by seller (user's store) - WITH EAGER LOADING
      */
+    @Transactional(readOnly = true)
     public List<MarketplaceItem> getSellerListings(Long sellerId) {
         return marketplaceItemRepository.findBySellerId(sellerId);
     }
 
     /**
-     * Get active listings by category
+     * Get active listings by category - WITH EAGER LOADING
      */
+    @Transactional(readOnly = true)
     public List<MarketplaceItem> getCategoryListings(Long categoryId, int page, int size) {
         return marketplaceItemRepository.findByCategoryIdAndStatus(
                 categoryId,
@@ -206,32 +192,122 @@ public class MarketplaceService {
     }
 
     /**
+     * NEW: Get popular stores - WITH EAGER LOADING
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getPopularStores(int limit) {
+        try {
+            // Get users who have the most active listings
+            List<Object[]> results = marketplaceItemRepository.findPopularStores(limit);
+
+            List<Map<String, Object>> popularStores = new ArrayList<>();
+
+            for (Object[] result : results) {
+                User seller = (User) result[0];
+                Long itemCount = (Long) result[1];
+
+                Map<String, Object> storeInfo = new HashMap<>();
+                storeInfo.put("storeId", seller.getId());
+                storeInfo.put("storeName", seller.getName() + "'s Store");
+                storeInfo.put("sellerName", seller.getName());
+                storeInfo.put("itemCount", itemCount);
+                storeInfo.put("memberSince", seller.getCreatedAt());
+
+                popularStores.add(storeInfo);
+            }
+
+            return popularStores;
+
+        } catch (Exception e) {
+            log.error("Failed to get popular stores", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * NEW: Toggle favorite item
+     */
+    @Transactional
+    public boolean toggleFavorite(Long userId, Long itemId) {
+        try {
+            Optional<MarketplaceFavorite> existingFavorite =
+                    marketplaceFavoriteRepository.findByUserIdAndItemId(userId, itemId);
+
+            if (existingFavorite.isPresent()) {
+                // Remove from favorites
+                marketplaceFavoriteRepository.delete(existingFavorite.get());
+
+                // Update item's favorite count
+                MarketplaceItem item = marketplaceItemRepository.findById(itemId)
+                        .orElseThrow(() -> new RuntimeException("Item not found"));
+                item.setFavoritesCount(Math.max(0, item.getFavoritesCount() - 1));
+                marketplaceItemRepository.save(item);
+
+                return false; // Not favorited anymore
+            } else {
+                // Add to favorites
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new RuntimeException("User not found"));
+                MarketplaceItem item = marketplaceItemRepository.findById(itemId)
+                        .orElseThrow(() -> new RuntimeException("Item not found"));
+
+                MarketplaceFavorite favorite = MarketplaceFavorite.builder()
+                        .user(user)
+                        .item(item)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+                marketplaceFavoriteRepository.save(favorite);
+
+                // Update item's favorite count
+                item.setFavoritesCount(item.getFavoritesCount() + 1);
+                marketplaceItemRepository.save(item);
+
+                return true; // Now favorited
+            }
+        } catch (Exception e) {
+            log.error("Failed to toggle favorite", e);
+            throw new RuntimeException("Failed to toggle favorite");
+        }
+    }
+
+    /**
+     * NEW: Get user's favorite items - WITH EAGER LOADING
+     */
+    @Transactional(readOnly = true)
+    public List<MarketplaceItem> getUserFavorites(Long userId) {
+        return marketplaceFavoriteRepository.findItemsByUserId(userId);
+    }
+
+    /**
      * Delete listing (soft delete)
      */
+    @Transactional
     public void deleteListing(Long itemId, Long sellerId) {
         MarketplaceItem item = marketplaceItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
         if (!item.getSeller().getId().equals(sellerId)) {
-            throw new RuntimeException("Unauthorized: You can only delete your own listings");
+            throw new RuntimeException("Unauthorized: You can only delete items from your own store");
         }
 
         item.setStatus(MarketplaceItem.ItemStatus.DELETED);
         item.setUpdatedAt(LocalDateTime.now());
         marketplaceItemRepository.save(item);
 
-        log.info("Soft deleted listing {} by seller {}", itemId, sellerId);
+        log.info("Soft deleted listing {} from {}'s store", itemId, item.getSeller().getName());
     }
 
     /**
      * Mark item as sold
      */
+    @Transactional
     public void markAsSold(Long itemId, Long sellerId) {
         MarketplaceItem item = marketplaceItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
         if (!item.getSeller().getId().equals(sellerId)) {
-            throw new RuntimeException("Unauthorized: You can only update your own listings");
+            throw new RuntimeException("Unauthorized: You can only update items in your own store");
         }
 
         item.setStatus(MarketplaceItem.ItemStatus.SOLD);
@@ -239,19 +315,21 @@ public class MarketplaceService {
         item.setUpdatedAt(LocalDateTime.now());
         marketplaceItemRepository.save(item);
 
-        log.info("Marked item {} as sold", itemId);
+        log.info("Marked item {} as sold in {}'s store", itemId, item.getSeller().getName());
     }
 
     /**
-     * Get featured/trending items
+     * Get featured/trending items from all stores - WITH EAGER LOADING
      */
+    @Transactional(readOnly = true)
     public List<MarketplaceItem> getFeaturedItems(int limit) {
         return marketplaceItemRepository.findFeaturedItems(limit);
     }
 
     /**
-     * Get recently listed items
+     * Get recently listed items from all stores - WITH EAGER LOADING
      */
+    @Transactional(readOnly = true)
     public List<MarketplaceItem> getRecentListings(int limit) {
         return marketplaceItemRepository.findRecentListings(limit);
     }
@@ -267,7 +345,6 @@ public class MarketplaceService {
         // If it's already a valid JSON array string, parse it
         if (imagesJson.startsWith("[") && imagesJson.endsWith("]")) {
             try {
-                // Simple JSON array parsing
                 String cleaned = imagesJson.substring(1, imagesJson.length() - 1);
                 if (cleaned.isEmpty()) {
                     return new ArrayList<>();
@@ -294,7 +371,6 @@ public class MarketplaceService {
         if (input == null) {
             return null;
         }
-        // Basic sanitization - in production, use a library like OWASP Java HTML Sanitizer
         return input.replaceAll("<", "&lt;")
                 .replaceAll(">", "&gt;")
                 .replaceAll("\"", "&quot;")
@@ -314,7 +390,7 @@ public class MarketplaceService {
         private MarketplaceItem.ItemCondition condition;
         private Integer quantity;
         private MarketplaceItem.ItemStatus status;
-        private String imagesJson; // JSON string of image URLs
+        private String imagesJson;
         private List<String> tags;
         private String location;
         private Boolean isNegotiable;

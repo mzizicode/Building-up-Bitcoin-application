@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,9 +32,10 @@ public class MarketplaceController {
     private final MarketplaceItemRepository marketplaceItemRepository;
 
     /**
-     * 🛠️ FIXED: Get all marketplace items with proper search/filter
+     * Get all marketplace items with proper search/filter
      */
     @GetMapping("/items")
+    @Transactional(readOnly = true)
     @Operation(summary = "Get marketplace items", description = "Get marketplace items with search and filters")
     public ResponseEntity<?> getMarketplaceItems(
             @RequestParam(required = false) String query,
@@ -72,9 +74,122 @@ public class MarketplaceController {
     }
 
     /**
-     * 🛠️ FIXED: Create marketplace item with proper request handling
+     * NEW: Get user's store/shop - PUBLIC ACCESS
+     */
+    @GetMapping("/store/{userId}")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Get user store", description = "Get all items from a specific user's store")
+    public ResponseEntity<?> getUserStore(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "newest") String sortBy) {
+        try {
+            // Get seller information
+            User seller = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User/Store not found"));
+
+            // Get seller's items
+            List<MarketplaceItem> storeItems = marketplaceService.getSellerListings(userId);
+
+            // Apply sorting
+            storeItems = applySorting(storeItems, sortBy);
+
+            // Apply pagination
+            int totalItems = storeItems.size();
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, totalItems);
+            List<MarketplaceItem> paginatedItems = storeItems.subList(startIndex, endIndex);
+
+            List<Map<String, Object>> itemResponses = paginatedItems.stream()
+                    .map(this::createItemResponse)
+                    .collect(Collectors.toList());
+
+            // Store statistics
+            long activeItems = storeItems.stream()
+                    .filter(item -> item.getStatus() == MarketplaceItem.ItemStatus.ACTIVE)
+                    .count();
+
+            Map<String, Object> storeInfo = new HashMap<>();
+            storeInfo.put("storeId", userId);
+            storeInfo.put("storeName", seller.getName() + "'s Store");
+            storeInfo.put("sellerName", seller.getName());
+            storeInfo.put("sellerEmail", seller.getEmail());
+            storeInfo.put("totalItems", totalItems);
+            storeInfo.put("activeItems", activeItems);
+            storeInfo.put("memberSince", seller.getCreatedAt());
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "store", storeInfo,
+                    "items", itemResponses,
+                    "totalPages", (totalItems + size - 1) / size,
+                    "currentPage", page,
+                    "pageSize", size,
+                    "totalItems", totalItems
+            ));
+
+        } catch (Exception e) {
+            log.error("Failed to get user store", e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "message", "Failed to retrieve store: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * NEW: Get current user's own store - AUTHENTICATED
+     */
+    @GetMapping("/my-store")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Get my store", description = "Get current user's store items")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> getMyStore(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "newest") String sortBy) {
+        try {
+            User currentUser = getCurrentUser();
+            return getUserStore(currentUser.getId(), page, size, sortBy);
+        } catch (Exception e) {
+            log.error("Failed to get my store", e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "message", "Failed to retrieve your store: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * NEW: Get popular stores
+     */
+    @GetMapping("/stores/popular")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Get popular stores", description = "Get stores with most items or activity")
+    public ResponseEntity<?> getPopularStores(@RequestParam(defaultValue = "10") int limit) {
+        try {
+            List<Map<String, Object>> popularStores = marketplaceService.getPopularStores(limit);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "stores", popularStores
+            ));
+
+        } catch (Exception e) {
+            log.error("Failed to get popular stores", e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "message", "Failed to retrieve popular stores"
+            ));
+        }
+    }
+
+    /**
+     * Create marketplace item with proper request handling
      */
     @PostMapping("/items")
+    @Transactional
     @Operation(summary = "Create marketplace item", description = "Create a new marketplace item")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<?> createMarketplaceItem(@Valid @RequestBody CreateItemRequest request) {
@@ -115,8 +230,9 @@ public class MarketplaceController {
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "message", "Item created successfully",
-                    "item", createItemResponse(item)
+                    "message", "Item added to your store successfully!",
+                    "item", createItemResponse(item),
+                    "storeUrl", "/marketplace/store/" + currentUser.getId()
             ));
 
         } catch (Exception e) {
@@ -129,7 +245,7 @@ public class MarketplaceController {
     }
 
     /**
-     * 🛠️ NEW: Upload marketplace item images
+     * Upload marketplace item images
      */
     @PostMapping("/items/upload-images")
     @Operation(summary = "Upload item images", description = "Upload images for marketplace items")
@@ -155,13 +271,12 @@ public class MarketplaceController {
     }
 
     /**
-     * 🛠️ NEW: Get marketplace categories
+     * Get marketplace categories
      */
     @GetMapping("/categories")
     @Operation(summary = "Get categories", description = "Get all marketplace categories")
     public ResponseEntity<?> getCategories() {
         try {
-            // For now, return static categories. Later you can implement proper category service
             List<Map<String, Object>> categories = List.of(
                     Map.of("id", "1", "name", "Photography"),
                     Map.of("id", "2", "name", "Electronics"),
@@ -186,9 +301,10 @@ public class MarketplaceController {
     }
 
     /**
-     * 🛠️ NEW: View item (increment view count)
+     * View item (increment view count)
      */
     @PostMapping("/items/{itemId}/view")
+    @Transactional
     @Operation(summary = "View item", description = "Increment view count for an item")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<?> viewItem(@PathVariable Long itemId) {
@@ -206,24 +322,25 @@ public class MarketplaceController {
 
         } catch (Exception e) {
             log.error("Failed to increment view count", e);
-            return ResponseEntity.ok(Map.of("success", false)); // Don't fail on view tracking
+            return ResponseEntity.ok(Map.of("success", false));
         }
     }
 
     /**
-     * 🛠️ NEW: Favorite/unfavorite item
+     * Favorite/unfavorite item
      */
     @PostMapping("/items/{itemId}/favorite")
+    @Transactional
     @Operation(summary = "Toggle favorite", description = "Add or remove item from favorites")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<?> toggleFavorite(@PathVariable Long itemId) {
         try {
             User currentUser = getCurrentUser();
+            boolean favorited = marketplaceService.toggleFavorite(currentUser.getId(), itemId);
 
-            // For now, just return success. Implement favorite logic later if needed
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "favorited", true
+                    "favorited", favorited
             ));
 
         } catch (Exception e) {
@@ -247,6 +364,35 @@ public class MarketplaceController {
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
     }
 
+    private List<MarketplaceItem> applySorting(List<MarketplaceItem> items, String sortBy) {
+        switch (sortBy) {
+            case "price_asc":
+                return items.stream()
+                        .sorted((a, b) -> a.getPrice().compareTo(b.getPrice()))
+                        .collect(Collectors.toList());
+            case "price_desc":
+                return items.stream()
+                        .sorted((a, b) -> b.getPrice().compareTo(a.getPrice()))
+                        .collect(Collectors.toList());
+            case "oldest":
+                return items.stream()
+                        .sorted((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
+                        .collect(Collectors.toList());
+            case "views":
+                return items.stream()
+                        .sorted((a, b) -> Integer.compare(b.getViewsCount(), a.getViewsCount()))
+                        .collect(Collectors.toList());
+            case "favorites":
+                return items.stream()
+                        .sorted((a, b) -> Integer.compare(b.getFavoritesCount(), a.getFavoritesCount()))
+                        .collect(Collectors.toList());
+            default: // newest
+                return items.stream()
+                        .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                        .collect(Collectors.toList());
+        }
+    }
+
     private Map<String, Object> createItemResponse(MarketplaceItem item) {
         Map<String, Object> response = new HashMap<>();
         response.put("id", item.getId());
@@ -268,25 +414,59 @@ public class MarketplaceController {
         response.put("createdAt", item.getCreatedAt());
         response.put("updatedAt", item.getUpdatedAt());
 
-        if (item.getSeller() != null) {
-            Map<String, Object> sellerInfo = new HashMap<>();
-            sellerInfo.put("id", item.getSeller().getId());
-            sellerInfo.put("name", item.getSeller().getName());
-            sellerInfo.put("email", item.getSeller().getEmail());
-            response.put("seller", sellerInfo);
+        // Safe seller access - handles LazyInitializationException
+        try {
+            if (item.getSeller() != null) {
+                Map<String, Object> sellerInfo = new HashMap<>();
+                sellerInfo.put("id", item.getSeller().getId());
+
+                // Try to access name safely
+                try {
+                    sellerInfo.put("name", item.getSeller().getName());
+                    sellerInfo.put("email", item.getSeller().getEmail());
+                } catch (Exception e) {
+                    // If we can't access lazy-loaded data, fetch it manually
+                    User seller = userRepository.findById(item.getSeller().getId())
+                            .orElse(null);
+                    if (seller != null) {
+                        sellerInfo.put("name", seller.getName());
+                        sellerInfo.put("email", seller.getEmail());
+                    } else {
+                        sellerInfo.put("name", "Unknown Seller");
+                        sellerInfo.put("email", "");
+                    }
+                }
+
+                sellerInfo.put("storeUrl", "/marketplace/store/" + item.getSeller().getId());
+                response.put("seller", sellerInfo);
+            }
+        } catch (Exception e) {
+            log.warn("Could not load seller info for item {}: {}", item.getId(), e.getMessage());
+            response.put("seller", Map.of(
+                    "id", "unknown",
+                    "name", "Unknown Seller",
+                    "email", "",
+                    "storeUrl", "#"
+            ));
         }
 
-        if (item.getCategory() != null) {
-            Map<String, Object> categoryInfo = new HashMap<>();
-            categoryInfo.put("id", item.getCategory().getId());
-            categoryInfo.put("name", item.getCategory().getName());
-            response.put("category", categoryInfo);
+        // Safe category access
+        try {
+            if (item.getCategory() != null) {
+                Map<String, Object> categoryInfo = new HashMap<>();
+                categoryInfo.put("id", item.getCategory().getId());
+                categoryInfo.put("name", item.getCategory().getName());
+                response.put("category", categoryInfo);
+            }
+        } catch (Exception e) {
+            log.warn("Could not load category info for item {}: {}", item.getId(), e.getMessage());
+            response.put("category", null);
         }
 
         return response;
     }
 
-    // 🛠️ NEW: Request DTO for creating items
+    // Request DTO for creating items
     public static class CreateItemRequest {
         private String title;
         private String description;
