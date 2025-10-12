@@ -1,9 +1,6 @@
-// src/pages/SellProduct.js - COMPLETELY FIXED
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 function SellProduct() {
-    const navigate = useNavigate();
     const [productData, setProductData] = useState({
         title: '',
         description: '',
@@ -19,7 +16,7 @@ function SellProduct() {
     const [error, setError] = useState('');
     const [uploadingImages, setUploadingImages] = useState(false);
 
-    // 🛠️ FIXED: Handle image upload properly
+    // Handle image upload
     const handleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
@@ -31,49 +28,46 @@ function SellProduct() {
             const authToken = localStorage.getItem('authToken');
             if (!authToken) {
                 alert('Please sign in to upload images');
-                navigate('/signin');
+                window.location.href = '/signin';
                 return;
             }
 
-            // Upload images to marketplace endpoint
             const formData = new FormData();
             files.forEach(file => {
                 formData.append('images', file);
             });
 
-            console.log('🖼️ Uploading', files.length, 'images...');
+            console.log('Uploading', files.length, 'images...');
 
             const response = await fetch('http://localhost:8080/api/marketplace/items/upload-images', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${authToken}`
-                    // Don't set Content-Type for FormData
                 },
                 body: formData
             });
 
             const result = await response.json();
-            console.log('📸 Image upload response:', result);
 
             if (response.ok && result.success) {
                 setProductData(prev => ({
                     ...prev,
                     images: [...prev.images, ...result.imageUrls]
                 }));
-                console.log('✅ Images uploaded successfully:', result.imageUrls);
+                console.log('Images uploaded successfully:', result.imageUrls);
             } else {
                 throw new Error(result.message || 'Image upload failed');
             }
 
         } catch (error) {
-            console.error('🔴 Image upload error:', error);
+            console.error('Image upload error:', error);
             setError('Failed to upload images: ' + error.message);
         } finally {
             setUploadingImages(false);
         }
     };
 
-    // 🛠️ FIXED: Handle form submission with proper API call
+    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -83,11 +77,11 @@ function SellProduct() {
             const authToken = localStorage.getItem('authToken');
             if (!authToken) {
                 alert('Please sign in to sell products');
-                navigate('/signin');
+                window.location.href = '/signin';
                 return;
             }
 
-            // 🛠️ ENHANCED: Validate form data
+            // Validate form data
             if (!productData.title.trim()) {
                 throw new Error('Product title is required');
             }
@@ -98,7 +92,7 @@ function SellProduct() {
                 throw new Error('Valid price is required');
             }
 
-            // 🛠️ FIXED: Prepare request data matching backend expectations
+            // Prepare request data
             const requestData = {
                 title: productData.title.trim(),
                 description: productData.description.trim(),
@@ -113,10 +107,10 @@ function SellProduct() {
                 quantity: parseInt(productData.quantity),
                 location: productData.location.trim(),
                 isNegotiable: productData.isNegotiable,
-                images: productData.images // Array of image URLs
+                images: productData.images
             };
 
-            console.log('📦 Submitting product data:', requestData);
+            console.log('Submitting product data:', requestData);
 
             const response = await fetch('http://localhost:8080/api/marketplace/items', {
                 method: 'POST',
@@ -128,24 +122,31 @@ function SellProduct() {
             });
 
             const result = await response.json();
-            console.log('🛒 Product creation response:', result);
+            console.log('Product creation response:', result);
 
             if (response.ok && result.success) {
-                alert('🎉 Product listed successfully!');
-                navigate('/marketplace');
+                alert('Product listed successfully in your store!');
+
+                // Get user data to redirect to their store
+                const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+                if (userData.id) {
+                    window.location.href = `/marketplace/store/${userData.id}`;
+                } else {
+                    window.location.href = '/marketplace';
+                }
             } else {
                 throw new Error(result.message || `Server error: ${response.status}`);
             }
 
         } catch (error) {
-            console.error('🔴 Product creation error:', error);
+            console.error('Product creation error:', error);
             setError('Failed to create listing: ' + error.message);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // 🛠️ NEW: Remove image from list
+    // Remove image from list
     const removeImage = (index) => {
         setProductData(prev => ({
             ...prev,
@@ -153,13 +154,13 @@ function SellProduct() {
         }));
     };
 
-    // 🛠️ NEW: Handle input changes
+    // Handle input changes
     const handleInputChange = (field, value) => {
         setProductData(prev => ({
             ...prev,
             [field]: value
         }));
-        setError(''); // Clear error when user types
+        setError('');
     };
 
     return (
@@ -178,11 +179,16 @@ function SellProduct() {
                 padding: '40px',
                 boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
             }}>
-                <h1 style={{ textAlign: 'center', marginBottom: '30px', fontSize: '2.5rem' }}>
-                    📦 Sell Your Product
-                </h1>
+                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                    <h1 style={{ fontSize: '2.5rem', margin: '0 0 10px 0' }}>
+                        Add to Your Store
+                    </h1>
+                    <p style={{ margin: '0', opacity: '0.9' }}>
+                        List a new item in your marketplace store
+                    </p>
+                </div>
 
-                <form onSubmit={handleSubmit}>
+                <div onSubmit={handleSubmit}>
                     {/* Product Title */}
                     <div style={{ marginBottom: '25px' }}>
                         <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
@@ -282,12 +288,12 @@ function SellProduct() {
                                     outline: 'none'
                                 }}
                             >
-                                <option value="Photography">📸 Photography</option>
-                                <option value="Electronics">🔌 Electronics</option>
-                                <option value="Books">📚 Books</option>
-                                <option value="Travel">✈️ Travel</option>
-                                <option value="Art">🎨 Art & Crafts</option>
-                                <option value="Sports">⚽ Sports & Recreation</option>
+                                <option value="Photography">Photography</option>
+                                <option value="Electronics">Electronics</option>
+                                <option value="Books">Books</option>
+                                <option value="Travel">Travel</option>
+                                <option value="Art">Art & Crafts</option>
+                                <option value="Sports">Sports & Recreation</option>
                             </select>
                         </div>
                     </div>
@@ -312,11 +318,11 @@ function SellProduct() {
                                     outline: 'none'
                                 }}
                             >
-                                <option value="NEW">🆕 Brand New</option>
-                                <option value="USED_LIKE_NEW">✨ Used - Like New</option>
-                                <option value="USED_GOOD">👍 Used - Good</option>
-                                <option value="USED_FAIR">👌 Used - Fair</option>
-                                <option value="FOR_PARTS">🔧 For Parts/Repair</option>
+                                <option value="NEW">Brand New</option>
+                                <option value="USED_LIKE_NEW">Used - Like New</option>
+                                <option value="USED_GOOD">Used - Good</option>
+                                <option value="USED_FAIR">Used - Fair</option>
+                                <option value="FOR_PARTS">For Parts/Repair</option>
                             </select>
                         </div>
 
@@ -388,7 +394,7 @@ function SellProduct() {
                                     cursor: 'pointer'
                                 }}
                             />
-                            💬 Price is negotiable
+                            Price is negotiable
                         </label>
                     </div>
 
@@ -421,7 +427,7 @@ function SellProduct() {
                                 color: '#ffd700',
                                 fontSize: '0.9rem'
                             }}>
-                                📤 Uploading images to S3...
+                                Uploading images...
                             </div>
                         )}
 
@@ -429,7 +435,7 @@ function SellProduct() {
                         {productData.images.length > 0 && (
                             <div style={{ marginTop: '20px' }}>
                                 <h4 style={{ marginBottom: '15px' }}>
-                                    📸 Uploaded Images ({productData.images.length})
+                                    Uploaded Images ({productData.images.length})
                                 </h4>
                                 <div style={{
                                     display: 'grid',
@@ -493,7 +499,7 @@ function SellProduct() {
                             marginBottom: '25px',
                             border: '2px solid rgba(239, 68, 68, 0.5)'
                         }}>
-                            ⚠️ {error}
+                            {error}
                         </div>
                     )}
 
@@ -501,6 +507,7 @@ function SellProduct() {
                     <div style={{ display: 'flex', gap: '15px', marginTop: '30px' }}>
                         <button
                             type="submit"
+                            onClick={handleSubmit}
                             disabled={isSubmitting || uploadingImages}
                             style={{
                                 flex: 1,
@@ -517,12 +524,12 @@ function SellProduct() {
                                 letterSpacing: '1px'
                             }}
                         >
-                            {isSubmitting ? '📤 Creating Listing...' : '🚀 List Product'}
+                            {isSubmitting ? 'Adding to Store...' : 'Add to My Store'}
                         </button>
 
                         <button
                             type="button"
-                            onClick={() => navigate('/marketplace')}
+                            onClick={() => window.history.back()}
                             disabled={isSubmitting}
                             style={{
                                 background: 'rgba(255, 255, 255, 0.2)',
@@ -549,7 +556,7 @@ function SellProduct() {
                         fontSize: '0.9rem',
                         lineHeight: '1.6'
                     }}>
-                        <h4 style={{ marginBottom: '10px', color: '#ffd700' }}>💡 Tips for Better Sales</h4>
+                        <h4 style={{ marginBottom: '10px', color: '#ffd700' }}>Store Success Tips</h4>
                         <ul style={{ margin: 0, paddingLeft: '20px' }}>
                             <li>Use clear, high-quality photos from multiple angles</li>
                             <li>Write detailed descriptions including size, condition, and features</li>
@@ -558,7 +565,7 @@ function SellProduct() {
                             <li>Respond quickly to buyer questions and offers</li>
                         </ul>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

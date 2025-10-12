@@ -1,59 +1,75 @@
-/* src/pages/Lottery.css - Enhanced with 24-Hour Countdown Timer */
+/* src/pages/Lottery.css - Professional Crypto Dark Theme with Fixed Scrolling */
+
+:root {
+    --crypto-bg-primary: #0a0e27;
+    --crypto-bg-secondary: #131835;
+    --crypto-bg-tertiary: #1a1f3a;
+    --crypto-accent-blue: #00d4ff;
+    --crypto-accent-purple: #a78bfa;
+    --crypto-accent-gold: #f59e0b;
+    --crypto-text-primary: #e2e8f0;
+    --crypto-text-secondary: #94a3b8;
+    --crypto-border: rgba(148, 163, 184, 0.1);
+    --crypto-glow-blue: rgba(0, 212, 255, 0.3);
+    --crypto-glow-purple: rgba(167, 139, 250, 0.3);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: auto;
+    min-height: 100vh;
+}
 
 .lottery-container {
     min-height: 100vh;
-    background: radial-gradient(ellipse at center, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
-    color: white;
+    height: auto;
+    background: linear-gradient(135deg, var(--crypto-bg-primary) 0%, var(--crypto-bg-secondary) 50%, var(--crypto-bg-tertiary) 100%);
+    color: var(--crypto-text-primary);
     overflow-x: hidden;
+    overflow-y: visible;
     position: relative;
+    padding-bottom: 60px;
 }
 
-/* Animated background */
+/* Animated grid background */
 .lottery-container::before {
     content: '';
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     background-image:
-            radial-gradient(2px 2px at 20px 30px, #fff, transparent),
-            radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
-            radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.6), transparent),
-            radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.4), transparent);
-    background-repeat: repeat;
-    background-size: 200px 100px;
-    animation: twinkle 15s linear infinite;
+            linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: grid-flow 20s linear infinite;
     pointer-events: none;
-    z-index: 1;
+    z-index: 0;
 }
 
-@keyframes twinkle {
-    from { opacity: 1; }
-    50% { opacity: 0.5; }
-    to { opacity: 1; }
+@keyframes grid-flow {
+    from { transform: translateY(0); }
+    to { transform: translateY(50px); }
 }
 
-/* 🚀 NEW: Countdown Timer - Always Visible at Top */
+/* Countdown Timer - Fixed Scrolling */
 .countdown-timer {
     position: sticky;
     top: 0;
-    background: linear-gradient(135deg, rgba(220, 38, 38, 0.95), rgba(185, 28, 28, 0.95));
-    backdrop-filter: blur(20px);
-    border-bottom: 3px solid #dc2626;
-    box-shadow: 0 4px 20px rgba(220, 38, 38, 0.4);
+    background: linear-gradient(135deg, rgba(19, 24, 53, 0.98), rgba(26, 31, 58, 0.98));
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--crypto-border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     z-index: 1000;
     padding: 20px 0;
-    animation: countdown-pulse 2s ease-in-out infinite;
-}
-
-@keyframes countdown-pulse {
-    0%, 100% {
-        box-shadow: 0 4px 20px rgba(220, 38, 38, 0.4);
-    }
-    50% {
-        box-shadow: 0 4px 30px rgba(220, 38, 38, 0.6);
-    }
 }
 
 .countdown-content {
@@ -64,61 +80,36 @@
 }
 
 .countdown-label {
-    font-size: 1.4rem;
+    font-size: 1.1rem;
     font-weight: 600;
     margin: 0 0 10px 0;
-    color: #fef2f2;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-    letter-spacing: 1px;
+    color: var(--crypto-text-secondary);
     text-transform: uppercase;
+    letter-spacing: 2px;
+    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
 }
 
 .timer-display {
-    font-family: 'Courier New', monospace;
+    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
     font-size: 4rem;
-    font-weight: 900;
-    color: #ffffff;
-    text-shadow:
-            0 0 10px rgba(255, 255, 255, 0.8),
-            0 0 20px rgba(220, 38, 38, 0.6),
-            0 2px 4px rgba(0, 0, 0, 0.8);
+    font-weight: 700;
+    color: var(--crypto-accent-blue);
+    text-shadow: 0 0 20px var(--crypto-glow-blue);
     margin: 0;
-    letter-spacing: 0.1em;
-    background: linear-gradient(45deg, #ffffff, #fee2e2, #ffffff);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: timer-glow 3s ease-in-out infinite alternate;
-    position: relative;
-}
-
-@keyframes timer-glow {
-    from {
-        text-shadow:
-                0 0 10px rgba(255, 255, 255, 0.8),
-                0 0 20px rgba(220, 38, 38, 0.6),
-                0 2px 4px rgba(0, 0, 0, 0.8);
-    }
-    to {
-        text-shadow:
-                0 0 15px rgba(255, 255, 255, 1),
-                0 0 30px rgba(220, 38, 38, 0.8),
-                0 2px 8px rgba(0, 0, 0, 0.8);
-    }
+    letter-spacing: 0.15em;
 }
 
 .countdown-subtitle {
-    font-size: 1.1rem;
-    color: #fecaca;
-    margin: 8px 0 0 0;
-    font-weight: 500;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    font-size: 0.95rem;
+    color: var(--crypto-text-secondary);
+    margin: 10px 0 0 0;
+    font-weight: 400;
 }
 
 /* Header Section */
 .lottery-header {
     text-align: center;
-    padding: 40px 20px;
+    padding: 60px 20px 40px;
     position: relative;
     z-index: 2;
 }
@@ -126,103 +117,88 @@
 .lottery-title {
     font-size: 3.5rem;
     font-weight: 800;
-    margin: 0 0 15px 0;
-    background: linear-gradient(45deg, #00d4ff, #4169e1, #ffd700);
+    margin: 0 0 16px 0;
+    background: linear-gradient(135deg, var(--crypto-accent-blue), var(--crypto-accent-purple), var(--crypto-accent-gold));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow: 0 0 30px rgba(65, 105, 225, 0.5);
-    animation: title-glow 3s ease-in-out infinite alternate;
-}
-
-@keyframes title-glow {
-    from { text-shadow: 0 0 20px rgba(65, 105, 225, 0.5); }
-    to { text-shadow: 0 0 40px rgba(0, 212, 255, 0.8); }
+    letter-spacing: -0.02em;
 }
 
 .lottery-subtitle {
-    font-size: 1.3rem;
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0 0 30px 0;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    font-size: 1.2rem;
+    color: var(--crypto-text-secondary);
+    margin: 0 0 40px 0;
+    font-weight: 400;
 }
 
-/* 🚀 ENHANCED: Current Winner Section */
+/* Current Winner Section */
 .current-winner-section {
     margin: 40px 0;
+    position: relative;
+    z-index: 2;
 }
 
 .winner-announcement {
     display: flex;
     justify-content: center;
     margin: 30px 0;
-    z-index: 2;
-    position: relative;
 }
 
 .winner-card {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.1));
-    border: 2px solid #ffd700;
-    border-radius: 20px;
-    padding: 30px;
+    background: linear-gradient(135deg, rgba(26, 31, 58, 0.6), rgba(19, 24, 53, 0.6));
+    border: 1px solid var(--crypto-border);
+    border-radius: 24px;
+    padding: 32px;
     max-width: 500px;
     text-align: center;
-    position: relative;
-    animation: winner-float 3s ease-in-out infinite;
-    box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease;
 }
 
-@keyframes winner-float {
-    0%, 100% {
-        transform: translateY(0px);
-        box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
-    }
-    50% {
-        transform: translateY(-10px);
-        box-shadow: 0 10px 60px rgba(255, 215, 0, 0.4);
-    }
+.winner-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 48px rgba(0, 212, 255, 0.2);
 }
 
 .winner-badge {
-    background: linear-gradient(45deg, #ffd700, #ffed4e);
-    color: #1a1a2e;
-    padding: 8px 20px;
-    border-radius: 25px;
+    background: linear-gradient(135deg, var(--crypto-accent-gold), #fbbf24);
+    color: var(--crypto-bg-primary);
+    padding: 8px 24px;
+    border-radius: 12px;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1rem;
     display: inline-block;
     margin-bottom: 20px;
-    animation: badge-pulse 2s ease-in-out infinite;
-}
-
-@keyframes badge-pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .winner-image {
     width: 200px;
     height: 150px;
     object-fit: cover;
-    border-radius: 15px;
+    border-radius: 16px;
     margin: 0 0 20px 0;
-    border: 3px solid #ffd700;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 2px solid var(--crypto-border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .winner-details h3 {
     font-size: 1.5rem;
-    margin: 0 0 10px 0;
-    color: #ffd700;
+    margin: 0 0 12px 0;
+    color: var(--crypto-text-primary);
+    font-weight: 700;
 }
 
 .winner-details p {
-    margin: 5px 0;
-    color: rgba(255, 255, 255, 0.9);
+    margin: 8px 0;
+    color: var(--crypto-text-secondary);
+    font-size: 0.95rem;
 }
 
-/* 🚀 NEW: Stats Section (Replacing old Controls) */
+/* Stats Section */
 .lottery-stats-section {
     display: flex;
     justify-content: center;
@@ -233,116 +209,119 @@
 
 .lottery-stats {
     display: flex;
-    gap: 30px;
+    gap: 24px;
     flex-wrap: wrap;
     justify-content: center;
 }
 
 .stat {
     text-align: center;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 15px;
-    padding: 25px;
-    min-width: 120px;
+    background: linear-gradient(135deg, rgba(26, 31, 58, 0.6), rgba(19, 24, 53, 0.6));
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--crypto-border);
+    border-radius: 20px;
+    padding: 28px 32px;
+    min-width: 140px;
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+    transition: left 0.6s;
+}
+
+.stat:hover::before {
+    left: 100%;
 }
 
 .stat:hover {
-    transform: translateY(-5px);
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    transform: translateY(-8px);
+    border-color: var(--crypto-accent-blue);
+    box-shadow: 0 12px 32px var(--crypto-glow-blue);
 }
 
 .stat-number {
     display: block;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: #00d4ff;
-    margin-bottom: 5px;
-    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--crypto-accent-blue);
+    margin-bottom: 8px;
+    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
 }
 
 .stat-label {
-    font-size: 0.95rem;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    color: var(--crypto-text-secondary);
     font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* Three.js Container */
 .threejs-container {
     position: relative;
     max-width: 1200px;
-    margin: 0 auto;
+    margin: 0 auto 40px;
     padding: 0 20px;
     z-index: 2;
 }
 
 .threejs-mount {
-    border-radius: 20px;
+    border-radius: 24px;
     overflow: hidden;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-    background: radial-gradient(circle at center, #1a1a2e, #0f0f23);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    background: var(--crypto-bg-secondary);
     position: relative;
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
+    border: 1px solid var(--crypto-border);
 }
 
 .threejs-mount canvas {
     display: block;
     outline: none;
-    transition: cursor 0.1s ease;
 }
 
-/* 🚀 NEW: Automated Draw Overlay */
+/* Automated Draw Overlay */
 .automated-draw-overlay {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(10, 14, 39, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 15;
-    border-radius: 20px;
-    backdrop-filter: blur(10px);
+    border-radius: 24px;
+    backdrop-filter: blur(20px);
 }
 
 .draw-animation {
     text-align: center;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(15px);
-    border: 2px solid rgba(255, 215, 0, 0.5);
-    border-radius: 20px;
-    padding: 40px;
+    background: linear-gradient(135deg, rgba(26, 31, 58, 0.8), rgba(19, 24, 53, 0.8));
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--crypto-border);
+    border-radius: 24px;
+    padding: 48px;
     max-width: 400px;
-    animation: draw-float 2s ease-in-out infinite;
-}
-
-@keyframes draw-float {
-    0%, 100% {
-        transform: translateY(0px);
-        box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
-    }
-    50% {
-        transform: translateY(-10px);
-        box-shadow: 0 20px 40px rgba(255, 215, 0, 0.4);
-    }
 }
 
 .draw-spinner {
     width: 80px;
     height: 80px;
-    border: 6px solid rgba(255, 215, 0, 0.2);
-    border-top: 6px solid #ffd700;
+    border: 4px solid rgba(0, 212, 255, 0.2);
+    border-top: 4px solid var(--crypto-accent-blue);
     border-radius: 50%;
     animation: draw-spin 1s linear infinite;
-    margin: 0 auto 25px auto;
+    margin: 0 auto 28px auto;
 }
 
 @keyframes draw-spin {
@@ -352,13 +331,13 @@
 
 .draw-animation h3 {
     font-size: 1.8rem;
-    margin: 0 0 15px 0;
-    color: #ffd700;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    margin: 0 0 16px 0;
+    color: var(--crypto-accent-blue);
+    font-weight: 700;
 }
 
 .draw-animation p {
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--crypto-text-secondary);
     font-size: 1.1rem;
     margin: 0;
 }
@@ -368,29 +347,17 @@
     position: absolute;
     top: 20px;
     left: 20px;
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
-    padding: 12px 16px;
-    border-radius: 10px;
+    background: rgba(19, 24, 53, 0.95);
+    backdrop-filter: blur(20px);
+    color: var(--crypto-text-primary);
+    padding: 16px 20px;
+    border-radius: 12px;
     font-size: 0.9rem;
-    line-height: 1.4;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    line-height: 1.5;
+    border: 1px solid var(--crypto-border);
     z-index: 10;
     pointer-events: none;
-    animation: tooltip-fade-in 0.2s ease-out;
-    will-change: opacity, transform;
-}
-
-@keyframes tooltip-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(-10px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .loading-overlay {
@@ -399,20 +366,20 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(10, 14, 39, 0.9);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 10;
-    border-radius: 20px;
+    border-radius: 24px;
 }
 
 .loading-spinner {
     width: 60px;
     height: 60px;
-    border: 4px solid rgba(255, 255, 255, 0.1);
-    border-top: 4px solid #00d4ff;
+    border: 4px solid rgba(0, 212, 255, 0.2);
+    border-top: 4px solid var(--crypto-accent-blue);
     border-radius: 50%;
     animation: loading-spin 1s linear infinite;
     margin-bottom: 20px;
@@ -424,7 +391,7 @@
 }
 
 .loading-overlay p {
-    color: #00d4ff;
+    color: var(--crypto-accent-blue);
     font-size: 1.2rem;
     font-weight: 600;
 }
@@ -435,41 +402,43 @@
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
-    background: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, rgba(26, 31, 58, 0.8), rgba(19, 24, 53, 0.8));
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
-    padding: 40px;
+    border: 1px solid var(--crypto-border);
+    border-radius: 24px;
+    padding: 48px;
     z-index: 5;
 }
 
 .empty-globe-message h3 {
     font-size: 2rem;
-    margin: 0 0 15px 0;
-    color: #00d4ff;
+    margin: 0 0 16px 0;
+    color: var(--crypto-accent-blue);
+    font-weight: 700;
 }
 
 .empty-globe-message p {
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0 0 30px 0;
+    color: var(--crypto-text-secondary);
+    margin: 0 0 32px 0;
     font-size: 1.1rem;
 }
 
 .upload-first-btn {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, var(--crypto-accent-blue), var(--crypto-accent-purple));
     color: white;
     border: none;
-    padding: 15px 30px;
-    border-radius: 25px;
+    padding: 16px 32px;
+    border-radius: 12px;
     font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    box-shadow: 0 8px 24px var(--crypto-glow-blue);
 }
 
 .upload-first-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px var(--crypto-glow-blue);
 }
 
 /* Instructions Section */
@@ -484,27 +453,28 @@
 
 .instructions-section h2 {
     font-size: 2.5rem;
-    margin: 0 0 40px 0;
-    background: linear-gradient(45deg, #00d4ff, #4169e1);
+    margin: 0 0 48px 0;
+    background: linear-gradient(135deg, var(--crypto-accent-blue), var(--crypto-accent-purple));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    font-weight: 800;
 }
 
 .instruction-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 30px;
+    gap: 24px;
     margin-bottom: 60px;
 }
 
 .instruction-card {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, rgba(26, 31, 58, 0.6), rgba(19, 24, 53, 0.6));
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--crypto-border);
     border-radius: 20px;
-    padding: 30px;
-    transition: all 0.4s ease;
+    padding: 32px;
+    transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
 }
@@ -516,7 +486,7 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
     transition: left 0.6s;
 }
 
@@ -525,28 +495,27 @@
 }
 
 .instruction-card:hover {
-    transform: translateY(-15px);
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
-    border-color: rgba(0, 212, 255, 0.3);
+    transform: translateY(-12px);
+    border-color: var(--crypto-accent-blue);
+    box-shadow: 0 16px 48px var(--crypto-glow-blue);
 }
 
 .instruction-icon {
-    font-size: 3.5rem;
+    font-size: 3rem;
     display: block;
     margin-bottom: 20px;
-    filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.3));
+    filter: drop-shadow(0 0 10px var(--crypto-glow-blue));
 }
 
 .instruction-card h3 {
-    font-size: 1.4rem;
-    margin: 0 0 15px 0;
-    color: #00d4ff;
-    font-weight: 600;
+    font-size: 1.3rem;
+    margin: 0 0 12px 0;
+    color: var(--crypto-text-primary);
+    font-weight: 700;
 }
 
 .instruction-card p {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--crypto-text-secondary);
     line-height: 1.6;
     margin: 0;
     font-size: 1rem;
@@ -554,9 +523,9 @@
 
 /* Controls Info Section */
 .controls-info {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, rgba(26, 31, 58, 0.4), rgba(19, 24, 53, 0.4));
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--crypto-border);
     border-radius: 20px;
     padding: 40px;
     margin: 40px auto;
@@ -567,9 +536,10 @@
 
 .controls-info h3 {
     font-size: 1.8rem;
-    margin: 0 0 25px 0;
-    color: #ffd700;
+    margin: 0 0 28px 0;
+    color: var(--crypto-accent-blue);
     text-align: center;
+    font-weight: 700;
 }
 
 .controls-info ul {
@@ -579,11 +549,11 @@
 }
 
 .controls-info li {
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.9);
+    padding: 16px 0;
+    border-bottom: 1px solid var(--crypto-border);
+    color: var(--crypto-text-secondary);
     font-size: 1rem;
-    line-height: 1.5;
+    line-height: 1.6;
 }
 
 .controls-info li:last-child {
@@ -591,7 +561,7 @@
 }
 
 .controls-info strong {
-    color: #00d4ff;
+    color: var(--crypto-accent-blue);
     font-weight: 600;
 }
 
@@ -602,121 +572,99 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(10, 14, 39, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    animation: modal-fade-in 0.3s ease-out;
-    backdrop-filter: blur(10px);
-}
-
-@keyframes modal-fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    backdrop-filter: blur(20px);
+    overflow-y: auto;
 }
 
 .modal-content {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(25px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
-    padding: 30px;
+    background: linear-gradient(135deg, rgba(26, 31, 58, 0.95), rgba(19, 24, 53, 0.95));
+    backdrop-filter: blur(40px);
+    border: 1px solid var(--crypto-border);
+    border-radius: 24px;
+    padding: 32px;
     max-width: 600px;
     max-height: 80vh;
     overflow-y: auto;
     position: relative;
-    animation: modal-scale-in 0.4s ease-out;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-}
-
-@keyframes modal-scale-in {
-    from { transform: scale(0.8); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+    margin: 20px;
 }
 
 .close-modal {
     position: absolute;
-    top: 15px;
+    top: 16px;
     right: 20px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
+    background: rgba(26, 31, 58, 0.8);
+    border: 1px solid var(--crypto-border);
+    color: var(--crypto-text-primary);
     font-size: 1.5rem;
     cursor: pointer;
     width: 40px;
     height: 40px;
-    border-radius: 50%;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
 }
 
 .close-modal:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: rotate(90deg);
-    border-color: #ff6b6b;
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    transform: scale(1.1);
 }
 
 .modal-image {
     width: 100%;
     max-height: 400px;
     object-fit: cover;
-    border-radius: 15px;
-    margin-bottom: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border-radius: 16px;
+    margin-bottom: 24px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--crypto-border);
 }
 
 .modal-details h3 {
     font-size: 1.6rem;
-    color: #00d4ff;
-    margin: 0 0 15px 0;
-    text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+    color: var(--crypto-accent-blue);
+    margin: 0 0 16px 0;
+    font-weight: 700;
 }
 
 .modal-details p {
-    margin: 10px 0;
-    color: rgba(255, 255, 255, 0.9);
+    margin: 12px 0;
+    color: var(--crypto-text-secondary);
     font-size: 1rem;
 }
 
 .status {
-    padding: 6px 15px;
-    border-radius: 25px;
+    padding: 6px 16px;
+    border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
     margin-left: 10px;
     display: inline-block;
+    letter-spacing: 0.5px;
 }
 
 .status.submitted {
-    background: rgba(33, 150, 243, 0.2);
-    color: #2196f3;
-    border: 1px solid #2196f3;
+    background: rgba(0, 212, 255, 0.2);
+    color: var(--crypto-accent-blue);
+    border: 1px solid var(--crypto-accent-blue);
 }
 
 .status.winner {
-    background: rgba(255, 215, 0, 0.2);
-    color: #ffd700;
-    border: 1px solid #ffd700;
-    animation: status-winner-glow 2s ease-in-out infinite;
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--crypto-accent-gold);
+    border: 1px solid var(--crypto-accent-gold);
 }
 
-@keyframes status-winner-glow {
-    0%, 100% {
-        box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
-        transform: scale(1.05);
-    }
-}
-
-/* Spinner */
 .spinner {
     width: 20px;
     height: 20px;
@@ -730,63 +678,24 @@
     to { transform: rotate(360deg); }
 }
 
-/* 🚀 NEW: Countdown Timer Responsive Styles */
+/* Responsive Design */
 @media (max-width: 768px) {
     .countdown-timer {
-        padding: 15px 0;
+        padding: 16px 0;
     }
 
     .countdown-label {
-        font-size: 1.1rem;
+        font-size: 0.95rem;
     }
 
     .timer-display {
-        font-size: 2.8rem;
+        font-size: 3rem;
     }
 
     .countdown-subtitle {
-        font-size: 1rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .countdown-timer {
-        padding: 12px 0;
+        font-size: 0.85rem;
     }
 
-    .countdown-label {
-        font-size: 1rem;
-        margin-bottom: 8px;
-    }
-
-    .timer-display {
-        font-size: 2.2rem;
-        letter-spacing: 0.05em;
-    }
-
-    .countdown-subtitle {
-        font-size: 0.9rem;
-    }
-}
-
-/* General Responsive Design */
-@media (max-width: 1024px) {
-    .lottery-stats {
-        flex-direction: column;
-        align-items: center;
-        gap: 20px;
-    }
-
-    .lottery-stats {
-        justify-content: center;
-    }
-
-    .threejs-mount {
-        height: 500px !important;
-    }
-}
-
-@media (max-width: 768px) {
     .lottery-title {
         font-size: 2.5rem;
     }
@@ -797,7 +706,7 @@
 
     .winner-card {
         margin: 0 20px;
-        padding: 25px;
+        padding: 28px;
     }
 
     .winner-image {
@@ -805,82 +714,62 @@
         height: 100px;
     }
 
-    .threejs-mount {
-        height: 400px !important;
-    }
-
     .instruction-cards {
         grid-template-columns: 1fr;
         gap: 20px;
     }
 
-    .controls-info {
-        margin: 40px 20px;
-        padding: 30px;
-    }
-
-    .modal-content {
-        margin: 20px;
-        max-width: calc(100% - 40px);
-        padding: 25px;
-    }
-
     .lottery-stats {
         flex-direction: row;
-        gap: 15px;
+        gap: 16px;
     }
 
     .stat {
         flex: 1;
         min-width: 100px;
-        padding: 20px 15px;
+        padding: 24px 20px;
     }
 
     .stat-number {
-        font-size: 1.8rem;
+        font-size: 2rem;
+    }
+
+    .controls-info {
+        padding: 30px 20px;
+    }
+
+    .modal-content {
+        padding: 28px;
     }
 }
 
 @media (max-width: 480px) {
     .lottery-container {
-        padding: 0 10px;
+        padding-bottom: 40px;
     }
 
     .lottery-header {
-        padding: 30px 15px;
+        padding: 40px 15px 30px;
     }
 
     .lottery-title {
         font-size: 2rem;
     }
 
-    .winner-card {
-        padding: 20px;
-    }
-
-    .lottery-stats-section {
-        margin: 30px 0;
+    .timer-display {
+        font-size: 2.5rem;
     }
 
     .lottery-stats {
         flex-direction: column;
         width: 100%;
-        gap: 15px;
+        gap: 12px;
     }
 
     .stat {
         width: 100%;
-        max-width: 200px;
+        max-width: 220px;
         margin: 0 auto;
-        padding: 20px;
-    }
-
-    .threejs-container {
-        padding: 0 15px;
-    }
-
-    .threejs-mount {
-        height: 350px !important;
     }
 
     .instructions-section {
@@ -892,92 +781,26 @@
     }
 
     .instruction-card {
-        padding: 25px;
+        padding: 28px 20px;
     }
 
     .controls-info {
+        padding: 30px 20px;
         margin: 30px 15px;
-        padding: 25px;
     }
 
     .controls-info h3 {
         font-size: 1.5rem;
     }
-
-    .automated-draw-overlay {
-        padding: 20px;
-    }
-
-    .draw-animation {
-        padding: 30px 20px;
-        max-width: 320px;
-    }
-
-    .draw-animation h3 {
-        font-size: 1.5rem;
-    }
-
-    .draw-animation p {
-        font-size: 1rem;
-    }
 }
 
-/* Performance optimizations */
-.threejs-mount canvas {
-    display: block;
-    outline: none;
-}
-
-/* 🚀 NEW: Special animations for countdown urgency */
-@media (max-width: 480px) {
-    .countdown-timer {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 1001;
-    }
-
-    .lottery-header {
-        margin-top: 80px; /* Account for fixed countdown timer */
-    }
-}
-
-/* 🚀 NEW: Urgent countdown styling (last hour) */
+/* Urgent/Final countdown states */
 .countdown-timer.urgent {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95));
-    animation: urgent-flash 1s ease-in-out infinite;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.3));
+    border-bottom-color: rgba(239, 68, 68, 0.5);
 }
 
-@keyframes urgent-flash {
-    0%, 100% {
-        box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
-    }
-    50% {
-        box-shadow: 0 4px 40px rgba(239, 68, 68, 0.8);
-    }
-}
-
-/* 🚀 NEW: Final countdown styling (last 10 minutes) */
 .countdown-timer.final {
-    background: linear-gradient(135deg, rgba(248, 113, 113, 0.95), rgba(239, 68, 68, 0.95));
-    animation: final-pulse 0.5s ease-in-out infinite;
-}
-
-@keyframes final-pulse {
-    0%, 100% {
-        transform: scale(1);
-        box-shadow: 0 4px 20px rgba(248, 113, 113, 0.6);
-    }
-    50% {
-        transform: scale(1.02);
-        box-shadow: 0 6px 30px rgba(248, 113, 113, 0.9);
-    }
-}
-
-/* Dark mode support (future enhancement) */
-@media (prefers-color-scheme: dark) {
-    .countdown-timer {
-        background: linear-gradient(135deg, rgba(185, 28, 28, 0.98), rgba(153, 27, 27, 0.98));
-    }
+    background: linear-gradient(135deg, rgba(248, 113, 113, 0.4), rgba(239, 68, 68, 0.4));
+    border-bottom-color: rgba(248, 113, 113, 0.6);
 }

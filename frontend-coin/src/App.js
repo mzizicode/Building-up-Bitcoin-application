@@ -1,4 +1,4 @@
-// src/App.js - Updated with SignIn route, NotificationTest, and Marketplace Routes
+// src/App.js - Complete with all marketplace routes
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Register from './pages/Register';
@@ -7,7 +7,9 @@ import Dashboard from './pages/Dashboard';
 import Lottery from './pages/Lottery';
 import Marketplace from './pages/Marketplace';
 import SellProduct from './pages/SellProduct';
-import Wallet from './pages/Wallet';
+import UserStore from './pages/UserStore';
+import MyOrders from './pages/MyOrders';
+import MyWalletDashboard from './pages/MyWalletDashboard';
 import Navbar from './components/Navbar';
 import NotificationTest from './services/NotificationTest';
 
@@ -56,10 +58,15 @@ function App() {
                     price: 150,
                     image: "https://picsum.photos/id/250/400/300",
                     seller: "PhotoPro Mike",
+                    sellerId: 1,
+                    submittedBy: "PhotoPro Mike",
                     category: "Photography",
                     condition: "Used - Excellent",
-                    datePosted: new Date().toLocaleDateString(),
-                    status: "Available"
+                    datePosted: new Date().toISOString(),
+                    status: "Available",
+                    viewsCount: 45,
+                    favoritesCount: 8,
+                    quantity: 1
                 },
                 {
                     id: 2,
@@ -68,10 +75,15 @@ function App() {
                     price: 85,
                     image: "https://picsum.photos/id/326/400/300",
                     seller: "ArtistAnna",
+                    sellerId: 2,
+                    submittedBy: "ArtistAnna",
                     category: "Electronics",
                     condition: "Used - Good",
-                    datePosted: new Date().toLocaleDateString(),
-                    status: "Available"
+                    datePosted: new Date().toISOString(),
+                    status: "Available",
+                    viewsCount: 32,
+                    favoritesCount: 5,
+                    quantity: 1
                 },
                 {
                     id: 3,
@@ -80,10 +92,15 @@ function App() {
                     price: 45,
                     image: "https://picsum.photos/id/481/400/300",
                     seller: "BookLover22",
+                    sellerId: 3,
+                    submittedBy: "BookLover22",
                     category: "Books",
                     condition: "Used - Good",
-                    datePosted: new Date().toLocaleDateString(),
-                    status: "Available"
+                    datePosted: new Date().toISOString(),
+                    status: "Available",
+                    viewsCount: 28,
+                    favoritesCount: 3,
+                    quantity: 2
                 },
                 {
                     id: 4,
@@ -92,10 +109,15 @@ function App() {
                     price: 75,
                     image: "https://picsum.photos/id/1/400/300",
                     seller: "AdventureSeeker",
+                    sellerId: 4,
+                    submittedBy: "AdventureSeeker",
                     category: "Travel",
                     condition: "Used - Very Good",
-                    datePosted: new Date().toLocaleDateString(),
-                    status: "Available"
+                    datePosted: new Date().toISOString(),
+                    status: "Available",
+                    viewsCount: 67,
+                    favoritesCount: 12,
+                    quantity: 1
                 }
             ];
             localStorage.setItem('marketplaceProducts', JSON.stringify(demoProducts));
@@ -128,11 +150,15 @@ function App() {
 
                 {/* Protected routes */}
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/wallet" element={<Wallet />} />
+                <Route path="/wallet" element={<MyWalletDashboard />} />
 
-                {/* 🛍️ Marketplace routes */}
+
+                {/* 🛍️ MARKETPLACE ROUTES - All connected now */}
                 <Route path="/marketplace" element={<Marketplace />} />
                 <Route path="/marketplace/sell" element={<SellProduct />} />
+                <Route path="/marketplace/store/:userId" element={<UserStore />} />
+                <Route path="/orders" element={<MyOrders />} />
+                <Route path="/my-orders" element={<MyOrders />} /> {/* Alternative route */}
 
                 {/* Catch all other routes and redirect to lottery */}
                 <Route path="*" element={<Navigate to="/" />} />

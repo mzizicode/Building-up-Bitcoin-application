@@ -1,4 +1,3 @@
-// src/pages/MarketplaceDashboard.js - Main Marketplace Interface with Public/Private Access
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './MarketplaceDashboard.css';
@@ -7,6 +6,7 @@ function MarketplaceDashboard() {
     const navigate = useNavigate();
     const [items, setItems] = useState([]);
     const [categories, setCategories] = useState([]);
+    const [popularStores, setPopularStores] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
@@ -20,11 +20,11 @@ function MarketplaceDashboard() {
     const [selectedItem, setSelectedItem] = useState(null);
     const [showItemModal, setShowItemModal] = useState(false);
 
-    // 🔐 NEW: Authentication state
+    // Authentication state
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [userData, setUserData] = useState(null);
 
-    // 🔐 NEW: Check authentication status
+    // Check authentication status
     useEffect(() => {
         const authToken = localStorage.getItem('authToken');
         const userDataStr = localStorage.getItem('userData');
@@ -32,16 +32,15 @@ function MarketplaceDashboard() {
         if (authToken && userDataStr) {
             setIsAuthenticated(true);
             setUserData(JSON.parse(userDataStr));
-            console.log('✅ User is authenticated - full marketplace access');
         } else {
             setIsAuthenticated(false);
-            console.log('👀 Viewing marketplace in read-only mode');
         }
     }, []);
 
     useEffect(() => {
         loadItems();
         loadCategories();
+        loadPopularStores();
         if (isAuthenticated) {
             loadWalletBalance();
         }
@@ -60,7 +59,6 @@ function MarketplaceDashboard() {
                 ...(maxPrice && { maxPrice: maxPrice })
             });
 
-            // 🔐 For demo purposes, load from localStorage if backend is not available
             const response = await fetch(`http://localhost:8080/api/marketplace/items?${params}`)
                 .catch(() => null);
 
@@ -73,11 +71,8 @@ function MarketplaceDashboard() {
                 }
             }
 
-            // 🔗 Fallback to localStorage demo data
-            console.log('🔗 Loading demo marketplace data from localStorage');
+            // Fallback to localStorage demo data
             const demoItems = JSON.parse(localStorage.getItem('marketplaceProducts') || '[]');
-
-            // Apply client-side filtering for demo
             let filteredItems = demoItems;
 
             if (searchQuery) {
@@ -112,7 +107,7 @@ function MarketplaceDashboard() {
                 case 'oldest':
                     filteredItems.sort((a, b) => new Date(a.datePosted) - new Date(b.datePosted));
                     break;
-                default: // newest
+                default:
                     filteredItems.sort((a, b) => new Date(b.datePosted) - new Date(a.datePosted));
             }
 
@@ -140,7 +135,6 @@ function MarketplaceDashboard() {
                 }
             }
 
-            // 🔗 Fallback to demo categories
             const demoCategories = [
                 { id: 'Photography', name: 'Photography' },
                 { id: 'Electronics', name: 'Electronics' },
@@ -153,6 +147,36 @@ function MarketplaceDashboard() {
 
         } catch (error) {
             console.error('Failed to load categories:', error);
+        }
+    };
+
+    // NEW: Load popular stores
+    const loadPopularStores = async () => {
+        try {
+            const response = await fetch('http://localhost:8080/api/marketplace/stores/popular?limit=6')
+                .catch(() => null);
+
+            if (response && response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    setPopularStores(data.stores || []);
+                    return;
+                }
+            }
+
+            // Demo popular stores
+            const demoStores = [
+                { storeId: 1, storeName: "John's Electronics Store", sellerName: "John Doe", itemCount: 25 },
+                { storeId: 2, storeName: "Sarah's Photography Hub", sellerName: "Sarah Wilson", itemCount: 18 },
+                { storeId: 3, storeName: "Mike's Bookstore", sellerName: "Mike Johnson", itemCount: 32 },
+                { storeId: 4, storeName: "Emma's Art Gallery", sellerName: "Emma Brown", itemCount: 14 },
+                { storeId: 5, storeName: "Tech Central", sellerName: "Alex Chen", itemCount: 41 },
+                { storeId: 6, storeName: "Sports World", sellerName: "David Miller", itemCount: 29 }
+            ];
+            setPopularStores(demoStores);
+
+        } catch (error) {
+            console.error('Failed to load popular stores:', error);
         }
     };
 
@@ -174,7 +198,6 @@ function MarketplaceDashboard() {
                 }
             }
 
-            // 🔗 Fallback to localStorage wallet balance
             const savedBalance = localStorage.getItem('walletBalance');
             setWalletBalance(savedBalance ? parseInt(savedBalance) : 125);
 
@@ -193,7 +216,6 @@ function MarketplaceDashboard() {
         setSelectedItem(item);
         setShowItemModal(true);
 
-        // Track view only if authenticated
         if (isAuthenticated) {
             try {
                 await fetch(`http://localhost:8080/api/marketplace/items/${item.id}/view`, {
@@ -208,7 +230,11 @@ function MarketplaceDashboard() {
         }
     };
 
-    // 🔐 UPDATED: Check authentication before purchase
+    // NEW: Handle store navigation
+    const handleStoreClick = (sellerId) => {
+        navigate(`/marketplace/store/${sellerId}`);
+    };
+
     const handlePurchase = async (item) => {
         if (!isAuthenticated) {
             alert('Please sign in to purchase items');
@@ -239,7 +265,7 @@ function MarketplaceDashboard() {
                 if (response && response.ok) {
                     const data = await response.json();
                     if (data.success) {
-                        alert('🎉 Purchase successful! Check your orders.');
+                        alert('Purchase successful! Check your orders.');
                         setShowItemModal(false);
                         loadWalletBalance();
                         navigate('/orders');
@@ -247,8 +273,7 @@ function MarketplaceDashboard() {
                     }
                 }
 
-                // 🔗 Demo purchase for localStorage
-                alert('🎉 Demo purchase successful! (This is a demo transaction)');
+                alert('Demo purchase successful! (This is a demo transaction)');
                 const newBalance = walletBalance - item.price;
                 setWalletBalance(newBalance);
                 localStorage.setItem('walletBalance', newBalance.toString());
@@ -260,7 +285,6 @@ function MarketplaceDashboard() {
         }
     };
 
-    // 🔐 UPDATED: Check authentication before favoriting
     const toggleFavorite = async (itemId) => {
         if (!isAuthenticated) {
             alert('Please sign in to save favorites');
@@ -277,17 +301,15 @@ function MarketplaceDashboard() {
             }).catch(() => null);
 
             if (response && response.ok) {
-                loadItems(); // Refresh items to update favorite count
+                loadItems();
             } else {
-                // Demo favorite toggle
-                alert('❤️ Added to favorites! (Demo mode)');
+                alert('Added to favorites! (Demo mode)');
             }
         } catch (error) {
             console.error('Failed to toggle favorite:', error);
         }
     };
 
-    // 🔐 UPDATED: Check authentication before navigating to protected routes
     const handleProtectedNavigation = (route) => {
         if (!isAuthenticated) {
             alert('Please sign in to access this feature');
@@ -297,9 +319,7 @@ function MarketplaceDashboard() {
         navigate(route);
     };
 
-    const formatPrice = (price) => {
-        return `${price} coins`;
-    };
+    const formatPrice = (price) => `${price} coins`;
 
     const getConditionBadge = (condition) => {
         const badges = {
@@ -308,7 +328,6 @@ function MarketplaceDashboard() {
             'USED_GOOD': { text: 'Good', color: '#f59e0b' },
             'USED_FAIR': { text: 'Fair', color: '#ef4444' },
             'FOR_PARTS': { text: 'Parts', color: '#6b7280' },
-            // Demo conditions
             'Used - Excellent': { text: 'Excellent', color: '#10b981' },
             'Used - Very Good': { text: 'Very Good', color: '#3b82f6' },
             'Used - Good': { text: 'Good', color: '#f59e0b' },
@@ -328,13 +347,12 @@ function MarketplaceDashboard() {
 
     const getItemImages = (item) => {
         try {
-            // Handle both JSON string and direct array/string
             if (typeof item.images === 'string') {
                 return JSON.parse(item.images);
             } else if (Array.isArray(item.images)) {
                 return item.images;
             } else if (item.image) {
-                return [item.image]; // Demo fallback
+                return [item.image];
             }
             return [];
         } catch {
@@ -344,10 +362,10 @@ function MarketplaceDashboard() {
 
     return (
         <div className="marketplace-dashboard">
-            {/* 🔐 UPDATED: Header with authentication-aware content */}
+            {/* Header */}
             <div className="marketplace-header">
                 <div className="header-content">
-                    <h1>🛍️ Marketplace</h1>
+                    <h1>Marketplace</h1>
                     {isAuthenticated ? (
                         <p>Buy and sell with coins • Welcome back, {userData?.name}!</p>
                     ) : (
@@ -356,7 +374,7 @@ function MarketplaceDashboard() {
 
                     {isAuthenticated ? (
                         <div className="wallet-display">
-                            <span className="wallet-balance">💰 {walletBalance} coins</span>
+                            <span className="wallet-balance">{walletBalance} coins</span>
                             <button
                                 className="top-up-btn"
                                 onClick={() => navigate('/wallet')}
@@ -370,13 +388,13 @@ function MarketplaceDashboard() {
                                 className="signin-btn"
                                 onClick={() => navigate('/signin')}
                             >
-                                🔐 Sign In to Trade
+                                Sign In to Trade
                             </button>
                             <button
                                 className="register-btn"
                                 onClick={() => navigate('/register')}
                             >
-                                📝 Create Account
+                                Create Account
                             </button>
                         </div>
                     )}
@@ -387,24 +405,32 @@ function MarketplaceDashboard() {
                         className="action-btn sell-btn"
                         onClick={() => handleProtectedNavigation('/marketplace/sell')}
                     >
-                        <span>📦 Sell Items</span>
+                        <span>Sell Items</span>
                     </button>
+                    {isAuthenticated && (
+                        <button
+                            className="action-btn store-btn"
+                            onClick={() => navigate(`/marketplace/store/${userData.id}`)}
+                        >
+                            <span>My Store</span>
+                        </button>
+                    )}
                     <button
                         className="action-btn orders-btn"
                         onClick={() => handleProtectedNavigation('/orders')}
                     >
-                        <span>📋 My Orders</span>
+                        <span>My Orders</span>
                     </button>
                     <button
                         className="action-btn favorites-btn"
                         onClick={() => handleProtectedNavigation('/favorites')}
                     >
-                        <span>❤️ Favorites</span>
+                        <span>Favorites</span>
                     </button>
                 </div>
             </div>
 
-            {/* 🔐 UPDATED: Public access notice */}
+            {/* Public access notice */}
             {!isAuthenticated && (
                 <div className="public-access-notice">
                     <div className="notice-content">
@@ -423,6 +449,112 @@ function MarketplaceDashboard() {
                 </div>
             )}
 
+            {/* Popular Stores Section - NEW */}
+            {popularStores.length > 0 && (
+                <div className="items-section">
+                    <div className="section-header">
+                        <h2>Popular Stores</h2>
+                        <p>Browse top sellers in our marketplace</p>
+                    </div>
+
+                    <div className="stores-grid" style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                        gap: '20px',
+                        marginBottom: '30px'
+                    }}>
+                        {popularStores.map(store => (
+                            <div
+                                key={store.storeId}
+                                className="store-card"
+                                onClick={() => handleStoreClick(store.storeId)}
+                                style={{
+                                    background: '#f8f9fa',
+                                    borderRadius: '15px',
+                                    padding: '20px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    border: '2px solid transparent'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.target.style.transform = 'translateY(-5px)';
+                                    e.target.style.boxShadow = '0 15px 35px rgba(0, 0, 0, 0.15)';
+                                    e.target.style.borderColor = '#667eea';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.target.style.transform = 'translateY(0)';
+                                    e.target.style.boxShadow = 'none';
+                                    e.target.style.borderColor = 'transparent';
+                                }}
+                            >
+                                <div style={{
+                                    width: '60px',
+                                    height: '60px',
+                                    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '24px',
+                                    fontWeight: 'bold',
+                                    marginBottom: '15px'
+                                }}>
+                                    {store.sellerName?.charAt(0) || 'S'}
+                                </div>
+
+                                <h3 style={{
+                                    fontSize: '1.2rem',
+                                    fontWeight: '600',
+                                    color: '#333',
+                                    marginBottom: '8px'
+                                }}>
+                                    {store.storeName}
+                                </h3>
+
+                                <p style={{
+                                    color: '#666',
+                                    marginBottom: '12px',
+                                    fontSize: '0.9rem'
+                                }}>
+                                    by {store.sellerName}
+                                </p>
+
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}>
+                                    <span style={{
+                                        background: 'rgba(102, 126, 234, 0.1)',
+                                        color: '#667eea',
+                                        padding: '4px 12px',
+                                        borderRadius: '20px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: '600'
+                                    }}>
+                                        {store.itemCount} items
+                                    </span>
+
+                                    <button style={{
+                                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '8px 16px',
+                                        borderRadius: '20px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: '600',
+                                        cursor: 'pointer'
+                                    }}>
+                                        Visit Store
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Search and Filters */}
             <div className="search-section">
                 <form onSubmit={handleSearch} className="search-form">
@@ -435,7 +567,7 @@ function MarketplaceDashboard() {
                             className="search-input"
                         />
                         <button type="submit" className="search-btn">
-                            🔍 Search
+                            Search
                         </button>
                     </div>
                 </form>
@@ -445,7 +577,7 @@ function MarketplaceDashboard() {
                         className="filters-toggle"
                         onClick={() => setShowFilters(!showFilters)}
                     >
-                        🔧 Filters {showFilters ? '−' : '+'}
+                        Filters {showFilters ? '−' : '+'}
                     </button>
 
                     {showFilters && (
@@ -527,7 +659,7 @@ function MarketplaceDashboard() {
 
                         {items.length === 0 ? (
                             <div className="empty-state">
-                                <span className="empty-icon">🪐</span>
+                                <span className="empty-icon">🏪</span>
                                 <h3>No items found</h3>
                                 <p>Try adjusting your search or filters</p>
                                 {isAuthenticated ? (
@@ -566,9 +698,7 @@ function MarketplaceDashboard() {
                                                         }}
                                                     />
                                                 ) : (
-                                                    <div className="no-image">
-                                                        📦
-                                                    </div>
+                                                    <div className="no-image">📦</div>
                                                 )}
 
                                                 <button
@@ -594,8 +724,22 @@ function MarketplaceDashboard() {
                                                 </p>
 
                                                 <div className="item-meta">
-                                                    <span className="item-seller">👤 {item.seller || item.submittedBy}</span>
-                                                    <span className="item-views">👀 {item.viewsCount || 0}</span>
+                                                    <span
+                                                        className="item-seller"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleStoreClick(item.seller?.id || item.sellerId || 1);
+                                                        }}
+                                                        style={{
+                                                            cursor: 'pointer',
+                                                            color: '#667eea',
+                                                            fontWeight: '600'
+                                                        }}
+                                                        title="Visit seller's store"
+                                                    >
+                                                        🏪 {item.seller?.name || item.submittedBy}
+                                                    </span>
+                                                    <span className="item-views">👁️ {item.viewsCount || 0}</span>
                                                     {item.location && (
                                                         <span className="item-location">📍 {item.location}</span>
                                                     )}
@@ -612,7 +756,6 @@ function MarketplaceDashboard() {
                                                     </div>
 
                                                     <div className="item-actions">
-                                                        {/* 🔐 UPDATED: Authentication-aware buy button */}
                                                         <button
                                                             className="buy-btn"
                                                             onClick={(e) => {
@@ -664,7 +807,7 @@ function MarketplaceDashboard() {
                 </>
             )}
 
-            {/* 🔐 UPDATED: Authentication-aware Item Detail Modal */}
+            {/* Item Detail Modal with Store Link */}
             {showItemModal && selectedItem && (
                 <div className="modal-overlay" onClick={() => setShowItemModal(false)}>
                     <div className="modal-content item-modal" onClick={(e) => e.stopPropagation()}>
@@ -694,7 +837,26 @@ function MarketplaceDashboard() {
                                 </div>
 
                                 <div className="modal-meta">
-                                    <p><strong>Seller:</strong> {selectedItem.seller || selectedItem.submittedBy}</p>
+                                    <p>
+                                        <strong>Seller:</strong>
+                                        <button
+                                            onClick={() => {
+                                                setShowItemModal(false);
+                                                handleStoreClick(selectedItem.seller?.id || selectedItem.sellerId || 1);
+                                            }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#667eea',
+                                                cursor: 'pointer',
+                                                textDecoration: 'underline',
+                                                fontWeight: '600',
+                                                marginLeft: '8px'
+                                            }}
+                                        >
+                                            🏪 {selectedItem.seller?.name || selectedItem.submittedBy} (Visit Store)
+                                        </button>
+                                    </p>
                                     <p><strong>Quantity:</strong> {selectedItem.quantity || 1} available</p>
                                     {selectedItem.location && <p><strong>Location:</strong> {selectedItem.location}</p>}
                                     <p><strong>Views:</strong> {selectedItem.viewsCount || 0}</p>
