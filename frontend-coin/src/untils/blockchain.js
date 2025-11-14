@@ -1,10 +1,11 @@
-// src/untils/blockchain.js
 import { ethers } from "ethers";
 import { provider, getSignerFromPrivateKey } from "./provider";
 import BSC from "../configurations/chain";
 
-// USDT (BEP-20) on BSC Mainnet
-const USDT_ADDRESS = process.env.REACT_APP_USDT_ADDRESS || BSC.usdtAddress;
+// USDT (BEP-20) on BSC Mainnet - ✅ Normalize the address
+const USDT_ADDRESS = ethers.getAddress(
+    process.env.REACT_APP_USDT_ADDRESS || BSC.usdtAddress
+);
 
 const USDT_ABI = [
     "function balanceOf(address owner) view returns (uint256)",
@@ -17,8 +18,10 @@ const USDT_ABI = [
  */
 export async function getUSDTBalance(walletAddress) {
     try {
+        // ✅ Normalize the wallet address
+        const normalizedAddress = ethers.getAddress(walletAddress);
         const contract = new ethers.Contract(USDT_ADDRESS, USDT_ABI, provider);
-        const rawBalance = await contract.balanceOf(walletAddress);
+        const rawBalance = await contract.balanceOf(normalizedAddress);
         const decimals = await contract.decimals();
         return ethers.formatUnits(rawBalance, decimals);
     } catch (err) {
@@ -35,6 +38,8 @@ export async function getUSDTBalance(walletAddress) {
  */
 export async function sendUSDT(privateKey, toAddress, amount) {
     try {
+        // ✅ Normalize the recipient address
+        const normalizedToAddress = ethers.getAddress(toAddress);
         const signer = getSignerFromPrivateKey(privateKey);
         const contract = new ethers.Contract(USDT_ADDRESS, USDT_ABI, signer);
 
@@ -48,10 +53,10 @@ export async function sendUSDT(privateKey, toAddress, amount) {
         const value = ethers.parseUnits(amount, decimals);
 
         // (Optional) estimate gas
-        const gasEstimate = await contract.transfer.estimateGas(toAddress, value);
+        const gasEstimate = await contract.transfer.estimateGas(normalizedToAddress, value);
         console.log("Estimated gas:", gasEstimate.toString());
 
-        const tx = await contract.transfer(toAddress, value);
+        const tx = await contract.transfer(normalizedToAddress, value);
         console.log("Transaction sent:", tx.hash);
         console.log("View on BSCScan:", `https://bscscan.com/tx/${tx.hash}`);
 
@@ -67,7 +72,9 @@ export async function sendUSDT(privateKey, toAddress, amount) {
  */
 export async function getBNBBalance(walletAddress) {
     try {
-        const balance = await provider.getBalance(walletAddress);
+        // ✅ Normalize the wallet address
+        const normalizedAddress = ethers.getAddress(walletAddress);
+        const balance = await provider.getBalance(normalizedAddress);
         return ethers.formatEther(balance);
     } catch (err) {
         console.error("BNB Balance Error:", err);
@@ -80,6 +87,8 @@ export async function getBNBBalance(walletAddress) {
  */
 export async function sendBNB(privateKey, toAddress, amount) {
     try {
+        // ✅ Normalize the recipient address
+        const normalizedToAddress = ethers.getAddress(toAddress);
         const signer = getSignerFromPrivateKey(privateKey);
 
         const balance = await provider.getBalance(await signer.getAddress());
@@ -90,12 +99,12 @@ export async function sendBNB(privateKey, toAddress, amount) {
         }
 
         // (Optional) estimates
-        const gasEstimate = await provider.estimateGas({ to: toAddress, value: amountWei });
+        const gasEstimate = await provider.estimateGas({ to: normalizedToAddress, value: amountWei });
         const feeData = await provider.getFeeData();
         console.log("Gas estimate:", gasEstimate.toString());
         console.log("Gas price:", feeData.gasPrice?.toString?.());
 
-        const tx = await signer.sendTransaction({ to: toAddress, value: amountWei });
+        const tx = await signer.sendTransaction({ to: normalizedToAddress, value: amountWei });
         console.log("Transaction sent:", tx.hash);
         console.log("View on BSCScan:", `https://bscscan.com/tx/${tx.hash}`);
 
@@ -115,8 +124,10 @@ export async function getTransactionHistory(walletAddress, apiKey = null) {
         return { bnb: [], usdt: [] };
     }
     try {
-        const bnbUrl  = `https://api.bscscan.com/api?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
-        const usdtUrl = `https://api.bscscan.com/api?module=account&action=tokentx&contractaddress=${USDT_ADDRESS}&address=${walletAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
+        // ✅ Normalize the wallet address
+        const normalizedAddress = ethers.getAddress(walletAddress);
+        const bnbUrl  = `https://api.bscscan.com/api?module=account&action=txlist&address=${normalizedAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
+        const usdtUrl = `https://api.bscscan.com/api?module=account&action=tokentx&contractaddress=${USDT_ADDRESS}&address=${normalizedAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
 
         const [bnbResponse, usdtResponse] = await Promise.all([
             fetch(bnbUrl).then(r => r.json()),
@@ -137,7 +148,12 @@ export async function getTransactionHistory(walletAddress, apiKey = null) {
  * Validate BSC address
  */
 export function isValidBSCAddress(address) {
-    return ethers.isAddress(address);
+    try {
+        ethers.getAddress(address);
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 /**

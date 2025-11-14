@@ -8,7 +8,9 @@ const ERC20_ABI = [
 ];
 
 export async function getUsdtContract(signerOrProvider) {
-    return new ethers.Contract(BSC_MAINNET.usdtAddress, ERC20_ABI, signerOrProvider);
+    // ✅ Normalize the USDT address
+    const normalizedUsdtAddress = ethers.getAddress(BSC_MAINNET.usdtAddress);
+    return new ethers.Contract(normalizedUsdtAddress, ERC20_ABI, signerOrProvider);
 }
 
 export async function getSigner() {
@@ -18,8 +20,10 @@ export async function getSigner() {
 }
 
 export async function approveUSDT(spender, amountWei) {
+    // ✅ Normalize the spender address
+    const normalizedSpender = ethers.getAddress(spender);
     const signer = await getSigner();
     const usdt = await getUsdtContract(signer);
-    const tx = await usdt.approve(spender, amountWei);
+    const tx = await usdt.approve(normalizedSpender, amountWei);
     return tx.wait();
 }

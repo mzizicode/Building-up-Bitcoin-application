@@ -34,7 +34,7 @@ contract JoyTradeEscrow is ReentrancyGuard, Pausable, Ownable {
     uint256 public nextDealId = 1;
     mapping(uint256 => Deal) public deals;
 
-    constructor(address _owner, address _feeCollector) Ownable() {
+    constructor(address _owner, address _feeCollector) Ownable(_owner) {
         require(_feeCollector != address(0), "feeCollector=0");
         feeCollector = _feeCollector;
         _transferOwnership(_owner); // set platform owner

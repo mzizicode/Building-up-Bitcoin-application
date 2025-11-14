@@ -8,7 +8,7 @@ const BSC_MAINNET = {
     usdtAddress: "0x55d398326f99059fF775485246999027B3197955",
 
     // JoyTrade Escrow Contract (your deployed one)
-    escrowAddress: "0x2441Cab91Cb0A7F3a8172D28e7848e80a18119A3",
+    escrowAddress: "0x8f51BE174F49f5BA265047ea010bbF335c4805BC",
 };
 
 export default BSC_MAINNET;
